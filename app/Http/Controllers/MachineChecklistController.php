@@ -36,8 +36,26 @@ class MachineChecklistController extends Controller
 
         }
 
-        // FILTER SECTION
-        if ($request->filled('section')) {
+        // SECTION OPTIONS (dependent on the selected machine type)
+        $sectionOptions = MachineChecklist::select('machine_type', 'section', 'section_order')
+            ->whereNotNull('section')
+            ->where('section', '!=', '')
+            ->distinct()
+            ->orderBy('section_order')
+            ->get();
+
+        $sectionsByType = $sectionOptions
+            ->groupBy('machine_type')
+            ->map(fn ($rows) => $rows->pluck('section')->unique()->values());
+
+        $allSections = $sectionOptions->pluck('section')->unique()->values();
+
+        $sections = $request->filled('machine_type')
+            ? ($sectionsByType[$request->machine_type] ?? collect())
+            : $allSections;
+
+        // FILTER SECTION (ignored when it doesn't belong to the selected machine type)
+        if ($request->filled('section') && $sections->contains($request->section)) {
 
             $query->where('section', $request->section);
 
@@ -87,17 +105,14 @@ class MachineChecklistController extends Controller
             ->orderBy('machine_type')
             ->pluck('machine_type');
 
-        $sections = MachineChecklist::select('section', 'section_order')
-            ->distinct()
-            ->orderBy('section_order')
-            ->pluck('section');
-
         return view(
             'machine-checklists.index',
             compact(
                 'checklists',
                 'machineTypes',
-                'sections'
+                'sections',
+                'sectionsByType',
+                'allSections'
             )
         );
     }

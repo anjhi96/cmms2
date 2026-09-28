@@ -130,7 +130,7 @@
                 class="border rounded px-3 py-2 w-72">
 
             <!-- MACHINE -->
-            <select name="machine_type" class="border rounded px-3 py-2">
+            <select name="machine_type" id="machineTypeFilter" class="border rounded px-3 py-2">
 
                 <option value="">All Machine Type</option>
 
@@ -145,7 +145,7 @@
             </select>
 
             <!-- SECTION -->
-            <select name="section" class="border rounded px-3 py-2">
+            <select name="section" id="sectionFilter" class="border rounded px-3 py-2">
 
                 <option value="">All Section</option>
 
@@ -349,6 +349,28 @@
     </div>
 
     <script>
+        // Dependent filter: Section options follow the selected Machine Type
+        (function() {
+            const sectionsByType = @json($sectionsByType);
+            const allSections = @json($allSections);
+            const typeSelect = document.getElementById('machineTypeFilter');
+            const sectionSelect = document.getElementById('sectionFilter');
+
+            typeSelect.addEventListener('change', function() {
+                const sections = typeSelect.value ? (sectionsByType[typeSelect.value] || []) : allSections;
+                const current = sectionSelect.value;
+
+                sectionSelect.innerHTML = '';
+                sectionSelect.add(new Option('All Section', ''));
+                sections.forEach(function(section) {
+                    sectionSelect.add(new Option(section, section));
+                });
+
+                // Falls back to "All Section" when the old section isn't in the new list
+                sectionSelect.value = sections.includes(current) ? current : '';
+            });
+        })();
+
         function updateFileName(input) {
 
             const fileName = input.files.length ?
