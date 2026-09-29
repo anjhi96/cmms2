@@ -22,6 +22,7 @@ document.addEventListener('alpine:init', () => {
                 <a href="{{ route('home') }}" title="Go to landing page"
                     class="flex min-w-0 items-center gap-3 transition hover:opacity-80">
                     <div class="flex h-12 w-12 items-center justify-center rounded-2xl
+<<<<<<< HEAD
                 bg-primary text-white shadow-sm">
 
                         <svg viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg" fill="none">
@@ -54,6 +55,11 @@ document.addEventListener('alpine:init', () => {
                                 </g>
                             </g>
                         </svg>
+=======
+                bg-gradient-to-br from-emerald-400 to-cyan-500
+                text-slate-950 shadow-lg shadow-emerald-500/20">
+                        <x-app-logo-icon class="h-7 w-7 text-slate-950" />
+>>>>>>> 5dda833a70f4e6d016c5b572a7097833c4248005
                     </div>
                     <div class="min-w-0">
                         <div class="text-base font-semibold tracking-wide text-sidebar-foreground">FreeDOMS</div>

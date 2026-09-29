@@ -7,39 +7,8 @@
             {{-- Logo --}}
             <a href="{{ route('home') }}" class="flex items-center gap-3">
 
-                <div class="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center shadow">
-
-                    <svg viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg" fill="none">
-                        <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
-                        <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
-                        <g id="SVGRepo_iconCarrier">
-                            <g style="stroke-width:.903553">
-                                <g style="stroke-width:1.22576">
-                                    <path d="M6 104V56h34.856M6 80h21.855" class="a"
-                                        style="fill:none;stroke:#000000;stroke-width:14.7089;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-                                        transform="matrix(.79792 0 0 .83414 17.08 29.264)"></path>
-                                </g>
-                                <g style="stroke-width:2.24031;stroke-dasharray:none">
-                                    <path
-                                        d="M14.665 15.027V7.109h2.574a2.672 2.672 0 1 1 0 5.345h-2.574m5.245 2.573-2.483-2.582"
-                                        class="a"
-                                        style="fill:none;stroke:#000000;stroke-width:2.24031;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
-                                        transform="matrix(5.56244 0 0 5.15795 -16.54 38.912)"></path>
-                                </g>
-                                <g style="stroke-width:1.03392">
-                                    <path d="M6 6h28v0M6 24h28v0M6 42h28v0"
-                                        style="fill:none;stroke:#000000;stroke-width:12.4073;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1;stroke-dasharray:none;paint-order:stroke fill markers"
-                                        transform="matrix(.86732 0 0 1.07855 141.13 70.11)"></path>
-                                </g>
-                                <g style="stroke-width:1.03392">
-                                    <path d="M6 6h28v0M6 24h28v0M6 42h28v0"
-                                        style="fill:none;stroke:#000000;stroke-width:12.4073;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1;stroke-dasharray:none;paint-order:stroke fill markers"
-                                        transform="matrix(.86732 0 0 1.07855 103.848 70.12)"></path>
-                                </g>
-                            </g>
-                        </g>
-                    </svg>
-
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-md shadow-blue-500/20 text-white">
+                    <x-app-logo-icon class="h-6 w-6 text-white" />
                 </div>
 
                 <div>
