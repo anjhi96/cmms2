@@ -10,7 +10,7 @@ use Carbon\Carbon;
 
 function conflictPic(string $name = 'Budi'): User
 {
-    return User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => $name]);
+    return User::factory()->create([...roleAttributes('PIC WWD'), 'name' => $name]);
 }
 
 function conflictPm(string $pic, array $overrides = []): PMSchedule

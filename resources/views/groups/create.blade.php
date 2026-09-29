@@ -20,6 +20,20 @@
                 @enderror
             </div>
 
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">Area</label>
+                <select name="area_id" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <option value="">No Area</option>
+                    @foreach ($areas as $area)
+                        <option value="{{ $area->id }}" @selected((string) old('area_id') === (string) $area->id)>{{ $area->name }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-500">Used to determine which PIC (by area) may be assigned to this group's greasing schedules.</p>
+                @error('area_id')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+            </div>
+
             <div class="flex flex-wrap gap-3 pt-2">
                 <button class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700">Save</button>
                 <a href="{{ route('groups.index') }}" class="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100">Cancel</a>

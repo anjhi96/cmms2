@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesActivityConflict;
 use App\Imports\GreasingScheduleImport;
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\GreasingFinding;
 use App\Models\Group;
@@ -51,10 +52,10 @@ class GreasingController extends Controller
 
         $groups = Group::orderBy('name')->get();
 
-        $picsByArea = [
-            'WWD' => User::where('role', User::ROLE_PIC_WWD)->orderBy('name')->get(),
-            'BUL' => User::where('role', User::ROLE_PIC_BUL)->orderBy('name')->get(),
-        ];
+        $picsByArea = Area::active()->orderBy('name')->get()
+            ->mapWithKeys(fn (Area $area) => [
+                $area->name => User::where('role', User::ROLE_PIC)->where('area_id', $area->id)->orderBy('name')->get(),
+            ]);
 
         return view('greasings.index', compact('greasings', 'groups', 'picsByArea'));
     }
@@ -78,7 +79,7 @@ class GreasingController extends Controller
                 'string',
                 'max:255',
                 Rule::exists('users', 'name')
-                    ->where(fn ($query) => $query->whereIn('role', [User::ROLE_PIC_WWD, User::ROLE_PIC_BUL])),
+                    ->where(fn ($query) => $query->where('role', User::ROLE_PIC)),
             ],
             'remarks' => 'nullable|string',
         ]);
@@ -183,7 +184,7 @@ class GreasingController extends Controller
                 'string',
                 'max:255',
                 Rule::exists('users', 'name')
-                    ->where(fn ($query) => $query->whereIn('role', [User::ROLE_PIC_WWD, User::ROLE_PIC_BUL])),
+                    ->where(fn ($query) => $query->where('role', User::ROLE_PIC)),
             ],
         ]);
 
@@ -235,8 +236,8 @@ class GreasingController extends Controller
      * ADMIN/KOORDINATOR (see routes/web.php), matching the fact that the
      * dropdown itself is only rendered for those roles.
      *
-     * The PIC role offered (PIC WWD vs PIC BUL) is inferred from the
-     * schedule's Group name, since Group/Greasing has no area column.
+     * The eligible PICs are those whose area matches the schedule's Group's
+     * area (Group::area(); Greasing itself has no area column of its own).
      */
     public function assignPic(Request $request, Greasing $greasing)
     {
@@ -255,16 +256,14 @@ class GreasingController extends Controller
             ], 403);
         }
 
-        $area = $greasing->group?->inferredArea();
+        $area = $greasing->group?->area;
 
         if ($area === null) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot determine PIC area (WWD/BUL) from this group\'s name.',
+                'message' => 'This group has no Area assigned — set one in Group Management before assigning a PIC.',
             ], 422);
         }
-
-        $picRole = $area === 'WWD' ? User::ROLE_PIC_WWD : User::ROLE_PIC_BUL;
 
         // Treat an empty selection ("Assign PIC" placeholder option) as
         // explicitly clearing the PIC, not as an invalid value.
@@ -277,7 +276,7 @@ class GreasingController extends Controller
                 'string',
                 'max:255',
                 Rule::exists('users', 'name')
-                    ->where(fn ($query) => $query->where('role', $picRole)),
+                    ->where(fn ($query) => $query->where('role', User::ROLE_PIC)->where('area_id', $area->id)),
             ],
         ]);
 

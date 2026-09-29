@@ -1,9 +1,22 @@
 <?php
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\Group;
 use App\Models\User;
 use App\Services\GreasingKpiCalculator;
+
+/**
+ * Groups previously had no area column — area was guessed from the name
+ * (the old Group::inferredArea(), now removed). Area is now a real
+ * Group::area() FK, so tests that filter by area must set it explicitly.
+ */
+function reportGroupInArea(string $name, string $areaName): Group
+{
+    $area = Area::firstOrCreate(['name' => $areaName], ['slug' => strtolower($areaName), 'is_active' => true]);
+
+    return Group::create(['name' => $name, 'area_id' => $area->id]);
+}
 
 function reportGreasing(array $attributes = []): Greasing
 {
@@ -40,13 +53,13 @@ test('report page requires authentication', function () {
 });
 
 test('guest role cannot access the greasing report', function () {
-    $guest = User::factory()->create(['role' => User::ROLE_GUEST]);
+    $guest = User::factory()->guest()->create();
 
     $this->actingAs($guest)->get(route('reports.greasing'))->assertForbidden();
 });
 
 test('monthly filter only includes schedules from the selected month', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $inAugust = reportGreasing(['plan_date' => '2026-08-05', 'cycle' => '4W']);
     $inSeptember = reportGreasing(['plan_date' => '2026-09-05', 'cycle' => '16W']);
@@ -63,7 +76,7 @@ test('monthly filter only includes schedules from the selected month', function 
 });
 
 test('yearly filter includes schedules across the whole year but not other years', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $inYear = reportGreasing(['plan_date' => '2026-01-15', 'cycle' => '4W']);
     $inDecember = reportGreasing(['plan_date' => '2026-12-15', 'cycle' => '52W']);
@@ -81,7 +94,7 @@ test('yearly filter includes schedules across the whole year but not other years
 });
 
 test('kpi on the report page matches the calculator for the filtered period', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     reportGreasing(['plan_date' => '2026-08-01', 'status' => 'FINISH ON TIME', 'action_date' => '2026-08-10']);
     reportGreasing(['plan_date' => '2026-08-02', 'status' => 'FINISH', 'action_date' => '2026-08-20']);
@@ -103,7 +116,7 @@ test('kpi on the report page matches the calculator for the filtered period', fu
 });
 
 test('finding count badge reflects the actual number of findings', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $withFindings = reportGreasing(['plan_date' => '2026-08-01']);
     $withFindings->findings()->createMany([
@@ -125,7 +138,7 @@ test('finding count badge reflects the actual number of findings', function () {
 });
 
 test('finding table only shows findings whose schedule falls in the selected period', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $inAugust = reportGreasing(['plan_date' => '2026-08-01']);
     $inAugust->findings()->create(['finding' => 'August finding text', 'status' => 'OPEN']);
@@ -145,8 +158,8 @@ test('finding table only shows findings whose schedule falls in the selected per
 });
 
 test('pic only sees their own schedules and findings on the report', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
-    $other = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->pic()->forArea('WWD')->create();
+    $other = User::factory()->pic()->forArea('WWD')->create();
 
     $mine = reportGreasing(['plan_date' => '2026-08-01', 'pic' => $pic->name, 'cycle' => '4W']);
     $notMine = reportGreasing(['plan_date' => '2026-08-02', 'pic' => $other->name, 'cycle' => '52W']);
@@ -163,7 +176,7 @@ test('pic only sees their own schedules and findings on the report', function ()
 });
 
 test('yearly trend has twelve months and each month kpi uses the same formula', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     reportGreasing(['plan_date' => '2026-03-01', 'status' => 'FINISH ON TIME', 'action_date' => '2026-03-05']);
     reportGreasing(['plan_date' => '2026-03-02', 'status' => 'OPEN']);
@@ -186,7 +199,7 @@ test('yearly trend has twelve months and each month kpi uses the same formula', 
 });
 
 test('yearly chart marks months with no schedule as no-data instead of a colored zero bar', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     reportGreasing(['plan_date' => '2026-03-01', 'status' => 'FINISH ON TIME', 'action_date' => '2026-03-05']);
 
@@ -201,10 +214,10 @@ test('yearly chart marks months with no schedule as no-data instead of a colored
 });
 
 test('admin can filter the greasing report by area', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
-    $wwdGroup = Group::create(['name' => 'WWD 1']);
-    $bulGroup = Group::create(['name' => 'BUL 1']);
+    $wwdGroup = reportGroupInArea('WWD 1', 'WWD');
+    $bulGroup = reportGroupInArea('BUL 1', 'BUL');
 
     $wwd = Greasing::create([
         'group_id' => $wwdGroup->id, 'order_number' => 'WO-WWD', 'cycle' => '4W',
@@ -238,7 +251,7 @@ test('admin can filter the greasing report by area', function () {
 });
 
 test('area filter on the greasing report is admin-only', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->pic()->forArea('WWD')->create();
 
     $response = $this->actingAs($pic)->get(route('reports.greasing'));
 

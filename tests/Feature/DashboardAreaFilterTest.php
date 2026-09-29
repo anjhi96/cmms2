@@ -37,7 +37,7 @@ test('admin can filter the whole dashboard by area', function () {
 });
 
 test('area filter is only exposed to admin, other roles cannot override their fixed area', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
 
     $bul = Machine::create(['machine_number' => 'MC-AF-KOOR', 'area' => 'BUL', 'machine_type' => 'TypeX', 'status' => 'ACTIVE']);
     PMSchedule::create([

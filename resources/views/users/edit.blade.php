@@ -330,7 +330,9 @@
                 @else
 
                     <select
+                        id="role"
                         name="role"
+                        onchange="toggleAreaField(this.value)"
                         class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
                         required
                     >
@@ -352,6 +354,52 @@
                     </p>
                 @enderror
             </div>
+
+            {{-- Area — only meaningful for KOORDINATOR/PIC; ADMIN implicitly
+                 accesses every area, GUEST has no area. Options come from
+                 the Area master list (see Area Management), never
+                 hardcoded. --}}
+            <div id="areaField">
+                <label
+                    for="area_id"
+                    class="mb-2 block text-sm font-medium text-slate-700"
+                >
+                    Area
+                </label>
+
+                <select
+                    id="area_id"
+                    name="area_id"
+                    class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none"
+                >
+                    <option value="">Select Area</option>
+
+                    @foreach ($areas as $area)
+                        <option
+                            value="{{ $area->id }}"
+                            @selected((string) old('area_id', $user->area_id) === (string) $area->id)
+                        >
+                            {{ $area->name }}
+                        </option>
+                    @endforeach
+                </select>
+
+                @error('area_id')
+                    <p class="mt-1 text-xs text-red-600">
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+
+            <script>
+                function toggleAreaField(role) {
+                    const field = document.getElementById('areaField');
+                    const needsArea = role === 'KOORDINATOR' || role === 'PIC';
+                    field.style.display = needsArea ? '' : 'none';
+                    document.getElementById('area_id').required = needsArea;
+                }
+                toggleAreaField(document.getElementById('role')?.value ?? '{{ $user->role }}');
+            </script>
 
             <div>
                 <label

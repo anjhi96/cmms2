@@ -36,7 +36,7 @@ function makeStartTestPmSchedule(Machine $machine, array $overrides = []): PMSch
 }
 
 test('pic can start a pm activity, writing the existing start_time and actual_date columns', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = makeStartTestMachine();
     $pm = makeStartTestPmSchedule($machine, ['pic' => 'Budi']);
 
@@ -53,7 +53,7 @@ test('pic can start a pm activity, writing the existing start_time and actual_da
 });
 
 test('starting does not overwrite an already started pm', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = makeStartTestMachine();
     $pm = makeStartTestPmSchedule($machine, [
         'pic' => 'Budi',
@@ -73,7 +73,7 @@ test('starting does not overwrite an already started pm', function () {
 });
 
 test('a finished pm cannot be started', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = makeStartTestMachine();
     $pm = makeStartTestPmSchedule($machine, ['pic' => 'Budi', 'status' => 'FINISHED_ON_TIME']);
 
@@ -85,7 +85,7 @@ test('a finished pm cannot be started', function () {
 });
 
 test('a pic cannot start a pm assigned to someone else', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = makeStartTestMachine();
     $pm = makeStartTestPmSchedule($machine, ['pic' => 'Andi']);
 
@@ -97,7 +97,7 @@ test('a pic cannot start a pm assigned to someone else', function () {
 });
 
 test('starting a second pm asks for END & START confirmation while the pic already has an active one', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = makeStartTestMachine();
 
     makeStartTestPmSchedule($machine, [
@@ -118,7 +118,7 @@ test('starting a second pm asks for END & START confirmation while the pic alrea
 });
 
 test('END & START on a second pm closes the first and starts the second', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
 
     $first = makeStartTestPmSchedule(makeStartTestMachine(), [
         'pic' => 'Budi',
@@ -151,7 +151,7 @@ test('END & START on a second pm closes the first and starts the second', functi
 });
 
 test('the pm index shows START next to Fill PM, then STARTED after starting', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = makeStartTestMachine();
     $pm = makeStartTestPmSchedule($machine, ['pic' => 'Budi']);
 

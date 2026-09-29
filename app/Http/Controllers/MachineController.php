@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Imports\MachinesImport;
+use App\Models\Area;
 use App\Models\Group;
 use App\Models\Machine;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
 class MachineController extends Controller
@@ -139,14 +141,15 @@ class MachineController extends Controller
     public function create()
     {
         $groups = Group::orderBy('name')->get();
+        $areas = Area::active()->orderBy('name')->get();
 
-        return view('machines.create', compact('groups'));
+        return view('machines.create', compact('groups', 'areas'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'area' => 'required',
+            'area' => ['required', Rule::in(Area::active()->pluck('name'))],
             'machine_type' => 'required',
             'machine_number' => 'required|unique:machines',
             'description' => 'nullable',
@@ -171,17 +174,21 @@ class MachineController extends Controller
     public function edit(Machine $machine)
     {
         $groups = Group::orderBy('name')->get();
+        $areas = Area::active()->orderBy('name')->get();
 
         return view(
             'machines.edit',
-            compact('machine', 'groups')
+            compact('machine', 'groups', 'areas')
         );
     }
 
     public function update(Request $request, Machine $machine)
     {
         $validated = $request->validate([
-            'area' => 'required',
+            // Include the machine's own current area even if it has since
+            // been deactivated, so saving an unrelated field never fails
+            // validation just because the area itself is no longer active.
+            'area' => ['required', Rule::in([...Area::active()->pluck('name'), $machine->area])],
             'machine_type' => 'required',
             'machine_number' => 'required|unique:machines,machine_number,'.$machine->id,
             'description' => 'nullable',

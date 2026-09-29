@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\Group;
 use App\Models\Machine;
 use App\Models\PMSchedule;
 use App\Models\User;
+use App\Support\AreaAuthorizationScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class MachineReportController extends Controller
 {
-    private const AREAS = ['WWD', 'BUL'];
-
     /**
      * "Gearbox machine" has no dedicated column/flag anywhere in the schema
      * (Machine/MachineChecklist/MachineProblem all lack one) — this list is
@@ -34,7 +34,7 @@ class MachineReportController extends Controller
     {
         $user = $request->user();
 
-        $area = $user->isAdmin() && in_array($request->input('area'), self::AREAS, true)
+        $area = $user->isAdmin() && Area::active()->pluck('name')->contains($request->input('area'))
             ? $request->input('area')
             : null;
         $machineType = $request->input('machine_type') ?: null;
@@ -52,11 +52,16 @@ class MachineReportController extends Controller
         $activeMachine = (clone $query)->where('machines.status', 'ACTIVE')->count();
         $inactiveMachine = (clone $query)->where('machines.status', '!=', 'ACTIVE')->count();
 
-        // --- Gearbox Machines — WWD only. Hidden (not just zeroed) when
-        // the effective visible area is BUL, per the WWD-only business
-        // rule this metric represents. ---
+        // --- Gearbox Machines — WWD only (business rule, not authorization
+        // — see PMSchedule::isGearboxApplicable() for the same rule applied
+        // to PM schedules). Hidden (not just zeroed) unless the effective
+        // visible area is WWD or unfiltered. Inclusion-based (must equal
+        // WWD) rather than exclusion-based (must not equal BUL), so
+        // filtering to any other area (e.g. a future GRIPPER) also
+        // correctly hides this WWD-only metric instead of showing it by
+        // omission. ---
         $resolvedArea = $this->resolvedArea($user, $area);
-        $showGearboxMetric = $resolvedArea !== 'BUL';
+        $showGearboxMetric = $resolvedArea === null || $resolvedArea === 'WWD';
         $gearboxCount = $showGearboxMetric
             ? (clone $query)->where('machines.area', 'WWD')->whereIn('machines.machine_type', self::GEARBOX_MACHINE_TYPES)->count()
             : 0;
@@ -112,7 +117,7 @@ class MachineReportController extends Controller
             'machineTypes' => $machineTypes,
             'statuses' => $statuses,
             'groups' => $groups,
-            'areas' => self::AREAS,
+            'areas' => Area::active()->orderBy('name')->pluck('name'),
             'isAdmin' => $user->isAdmin(),
             'selectedArea' => $area,
             'selectedMachineType' => $machineType,
@@ -195,29 +200,14 @@ class MachineReportController extends Controller
     /**
      * Machine has no PIC-ownership concept of its own (unlike PMSchedule/
      * Greasing) — so unlike PMReportController/GreasingReportController,
-     * BOTH Koordinator and PIC roles are scoped purely by area here,
-     * matching DashboardController::userAreaMatches()'s treatment of
-     * WWD-tied vs BUL-tied roles for area-based visibility.
+     * BOTH Koordinator and PIC roles are scoped purely by area here. Passing
+     * no $picColumn to the shared AreaAuthorizationScope rule achieves
+     * exactly that: PIC gets the same area-only scoping as KOORDINATOR
+     * instead of the usual area+name narrowing.
      */
     private function applyScopeTo(Builder $query, User $user, ?string $area): Builder
     {
-        switch ($user->role) {
-            case User::ROLE_KOORDINATOR_WWD:
-            case User::ROLE_PIC_WWD:
-                $query->where('machines.area', 'WWD');
-                break;
-            case User::ROLE_KOORDINATOR_BUL:
-            case User::ROLE_PIC_BUL:
-                $query->where('machines.area', 'BUL');
-                break;
-            default:
-                if ($area) {
-                    $query->where('machines.area', $area);
-                }
-                break;
-        }
-
-        return $query;
+        return AreaAuthorizationScope::apply($query, $user, 'machines.area', null, $area);
     }
 
     /**
@@ -227,10 +217,10 @@ class MachineReportController extends Controller
      */
     private function resolvedArea(User $user, ?string $area): ?string
     {
-        return match ($user->role) {
-            User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD => 'WWD',
-            User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_BUL => 'BUL',
-            default => $area,
-        };
+        if ($user->isKoordinator() || $user->isPic()) {
+            return $user->area?->name;
+        }
+
+        return $area;
     }
 }

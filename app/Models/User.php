@@ -6,6 +6,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -19,19 +20,25 @@ class User extends Authenticatable
     use Notifiable;
 
     /**
-     * Role constants
+     * Role constants. Role and Area are deliberately separate: a role no
+     * longer encodes an area (see the `area()` relation below) so a new area
+     * can be introduced purely as master data (see App\Models\Area), with no
+     * new role constant and no code change required anywhere.
      */
     public const ROLE_ADMIN = 'ADMIN';
 
-    public const ROLE_KOORDINATOR_WWD = 'KOORDINATOR WWD';
+    public const ROLE_KOORDINATOR = 'KOORDINATOR';
 
-    public const ROLE_KOORDINATOR_BUL = 'KOORDINATOR BUL';
-
-    public const ROLE_PIC_WWD = 'PIC WWD';
-
-    public const ROLE_PIC_BUL = 'PIC BUL';
+    public const ROLE_PIC = 'PIC';
 
     public const ROLE_GUEST = 'GUEST';
+
+    public const ROLES = [
+        self::ROLE_ADMIN,
+        self::ROLE_KOORDINATOR,
+        self::ROLE_PIC,
+        self::ROLE_GUEST,
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -43,6 +50,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'area_id',
         'is_active',
         'avatar_path',
         'oil_audit_started_at',
@@ -110,38 +118,12 @@ class User extends Authenticatable
 
     public function isKoordinator(): bool
     {
-        return in_array($this->role, [
-            self::ROLE_KOORDINATOR_WWD,
-            self::ROLE_KOORDINATOR_BUL,
-        ], true);
+        return $this->role === self::ROLE_KOORDINATOR;
     }
 
     public function isPic(): bool
     {
-        return in_array($this->role, [
-            self::ROLE_PIC_WWD,
-            self::ROLE_PIC_BUL,
-        ], true);
-    }
-
-    public function isKoordinatorWwd(): bool
-    {
-        return $this->role === self::ROLE_KOORDINATOR_WWD;
-    }
-
-    public function isKoordinatorBul(): bool
-    {
-        return $this->role === self::ROLE_KOORDINATOR_BUL;
-    }
-
-    public function isPicWwd(): bool
-    {
-        return $this->role === self::ROLE_PIC_WWD;
-    }
-
-    public function isPicBul(): bool
-    {
-        return $this->role === self::ROLE_PIC_BUL;
+        return $this->role === self::ROLE_PIC;
     }
 
     public function isGuest(): bool
@@ -157,6 +139,31 @@ class User extends Authenticatable
     public function hasRole(array $roles): bool
     {
         return in_array($this->role, $roles);
+    }
+
+    /**
+     * The user's area (WWD/BUL/any area added later via Area Management).
+     * ADMIN is never restricted to one (see hasArea()) but may still have
+     * area_id null here since Area is not meaningful for that role.
+     */
+    public function area(): BelongsTo
+    {
+        return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * True for ADMIN unconditionally (ADMIN accesses every area), otherwise
+     * true only if this user's own area matches the one given.
+     */
+    public function hasArea(Area|string $area): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $name = $area instanceof Area ? $area->name : $area;
+
+        return $this->area?->name === $name;
     }
 
     protected function nameFormatted(): Attribute

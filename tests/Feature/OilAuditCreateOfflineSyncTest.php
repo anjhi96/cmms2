@@ -42,7 +42,7 @@ function offlineOaPayload(int $machineId, string $uuid, string $condition = 'OKE
 }
 
 test('the stored audit\'s machine snapshot always comes from the server\'s Machine record, never anything the client could send', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = offlineOaMachine(['machine_number' => 'REAL-001', 'machine_type' => 'NDE', 'area' => 'WWD']);
 
     $payload = offlineOaPayload($machine->id, (string) Str::uuid(), 'KRITIS');
@@ -67,7 +67,7 @@ test('the stored audit\'s machine snapshot always comes from the server\'s Machi
 });
 
 test('OIL_AUDIT_CREATE idempotency with the exact envelope pmSave.js-style clients send: retry never creates a second audit', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = offlineOaMachine();
     $uuid = (string) Str::uuid();
     $payload = offlineOaPayload($machine->id, $uuid, 'PANTAU');
@@ -90,7 +90,7 @@ test('OIL_AUDIT_CREATE idempotency with the exact envelope pmSave.js-style clien
 });
 
 test('a machine_id that does not exist at all (not just out of scope) is rejected as validation_failed, not a crash', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
 
     $response = test()->actingAs($pic)->postJson(route('api.sync'), offlineOaPayload(999999, (string) Str::uuid()));
 
@@ -99,7 +99,7 @@ test('a machine_id that does not exist at all (not just out of scope) is rejecte
 });
 
 test('an invalid condition value is rejected as validation_failed', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = offlineOaMachine();
 
     $response = test()->actingAs($pic)->postJson(route('api.sync'), offlineOaPayload($machine->id, (string) Str::uuid(), 'NOT_A_REAL_CONDITION'));
@@ -118,7 +118,7 @@ test('an unauthenticated request to create an Oil Audit via sync is rejected —
 });
 
 test('existing online Oil Audit create workflow keeps working unchanged after Task 7', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = offlineOaMachine();
 
     test()->actingAs($pic)
@@ -130,7 +130,7 @@ test('existing online Oil Audit create workflow keeps working unchanged after Ta
 });
 
 test('the scan page embeds the offline machine cache but never changes its own authorization/visible behavior', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     offlineOaMachine(['machine_number' => 'CACHE-001']);
     offlineOaMachine(['area' => 'BUL', 'machine_type' => 'BF', 'machine_number' => 'OUT-OF-SCOPE']);
 

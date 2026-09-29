@@ -98,7 +98,7 @@
                     </label>
 
                     @php
-                        $canEditPic = in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL']);
+                        $canEditPic = auth()->user()->isAdmin() || auth()->user()->isKoordinator();
                     @endphp
 
                     <select name="pic"

@@ -80,7 +80,7 @@ test('area bul filter narrows to bul machines only for admin', function () {
 });
 
 test('koordinator wwd is fixed to wwd regardless of the area filter param', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
     reportMachine(['machine_number' => 'MC-WWD', 'area' => 'WWD']);
     reportMachine(['machine_number' => 'MC-BUL', 'area' => 'BUL', 'machine_type' => 'BF']);
 
@@ -91,7 +91,7 @@ test('koordinator wwd is fixed to wwd regardless of the area filter param', func
 });
 
 test('pic bul is fixed to bul regardless of the area filter param', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL]);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL')]);
     reportMachine(['machine_number' => 'MC-WWD', 'area' => 'WWD']);
     reportMachine(['machine_number' => 'MC-BUL', 'area' => 'BUL', 'machine_type' => 'BF']);
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\PicAvailability;
 use App\Models\User;
 use App\Services\ActiveActivityResolver;
@@ -34,6 +35,7 @@ class TodayActivityMonitorController extends Controller
             ...$this->board($area),
             'isAdmin' => $request->user()?->isAdmin() ?? false,
             'selectedArea' => $area ?? 'ALL',
+            'areas' => Area::active()->orderBy('name')->pluck('name'),
         ]);
     }
 
@@ -71,15 +73,16 @@ class TodayActivityMonitorController extends Controller
     }
 
     /**
-     * "ALL" (default), "WWD" or "BUL" from ?area=, or null for ALL / anything
-     * unrecognised. Server-side sanitization — never trusts the raw query
-     * value beyond this whitelist.
+     * "ALL" (default), an active Area's name from ?area=, or null for ALL /
+     * anything unrecognised. Server-side sanitization — never trusts the raw
+     * query value beyond this whitelist, which is sourced from the live
+     * Area master list so a newly added area is filterable immediately.
      */
     private function sanitizeArea(Request $request): ?string
     {
         $area = strtoupper((string) $request->query('area', ''));
 
-        return in_array($area, ['WWD', 'BUL'], true) ? $area : null;
+        return Area::active()->pluck('name')->contains($area) ? $area : null;
     }
 
     /**
@@ -90,22 +93,18 @@ class TodayActivityMonitorController extends Controller
      * Started, Inactive, counts) is derived from this SAME filtered roster,
      * so the whole right panel stays consistent with the selected area.
      *
-     * @param  string|null  $areaFilter  "WWD", "BUL", or null for every area
+     * @param  string|null  $areaFilter  An active Area's name, or null for every area
      * @return array{active: list<array{pic: User, activity: ActiveActivity}>, notStarted: list<string>, inactive: list<array{name: string, reason: string}>, totalPics: int, distribution: array<string, int>, manualBreakdown: list<array{name: string, count: int}>, area: array<string, array{active: int, available: int}>, counts: array{active: int, notStarted: int, inactive: int}}
      */
     private function board(?string $areaFilter = null): array
     {
         $resolver = app(ActiveActivityResolver::class);
 
-        $roles = match ($areaFilter) {
-            'WWD' => [User::ROLE_PIC_WWD],
-            'BUL' => [User::ROLE_PIC_BUL],
-            default => [User::ROLE_PIC_WWD, User::ROLE_PIC_BUL],
-        };
-
         $pics = User::query()
-            ->select(['id', 'name', 'role', 'avatar_path', 'oil_audit_started_at', 'oil_audit_action_started_at'])
-            ->whereIn('role', $roles)
+            ->select(['id', 'name', 'role', 'area_id', 'avatar_path', 'oil_audit_started_at', 'oil_audit_action_started_at'])
+            ->with('area:id,name')
+            ->where('role', User::ROLE_PIC)
+            ->when($areaFilter, fn ($q) => $q->whereHas('area', fn ($a) => $a->where('name', $areaFilter)))
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -124,17 +123,22 @@ class TodayActivityMonitorController extends Controller
         // Distribution counts ONLY currently-active activities, by source.
         $distribution = ['PM' => 0, 'GREASING' => 0, 'OIL_AUDIT' => 0, 'OIL_AUDIT_ACTION' => 0, 'MANUAL' => 0];
         $manualByName = [];
-        // Only the area(s) in scope — when filtered to one area, the other
+        // Only the area(s) in scope — when filtered to one area, any other
         // area's row simply isn't returned (rather than showing a
         // misleading 0 ACTIVE / 0 AVAILABLE for PICs that were never
         // queried), so the right panel stays consistent with the filter.
+        // Sourced from the live Area master list, not a fixed WWD/BUL pair,
+        // so a newly added area's PICs get their own row automatically.
         $area = [];
-        foreach ($areaFilter ? [$areaFilter] : ['WWD', 'BUL'] as $k) {
+        foreach ($areaFilter ? [$areaFilter] : Area::active()->orderBy('name')->pluck('name') as $k) {
             $area[$k] = ['active' => 0, 'available' => 0];
         }
 
         foreach ($pics as $pic) {
-            $areaKey = $pic->role === User::ROLE_PIC_BUL ? 'BUL' : 'WWD';
+            // A PIC with no area assigned has no row to bucket into — still
+            // counted in totalPics/active/notStarted/inactive below, just
+            // not in the per-area breakdown.
+            $areaKey = $pic->area?->name;
             $availability = $inactiveByUser->get($pic->id);
 
             if ($availability) {
@@ -143,13 +147,18 @@ class TodayActivityMonitorController extends Controller
                 continue; // inactive PICs are not "available" and never active
             }
 
-            $area[$areaKey]['available']++;
+            if ($areaKey !== null && isset($area[$areaKey])) {
+                $area[$areaKey]['available']++;
+            }
 
             $current = $resolver->currentFor($pic);
 
             if ($current) {
                 $active[] = ['pic' => $pic, 'activity' => $current];
-                $area[$areaKey]['active']++;
+
+                if ($areaKey !== null && isset($area[$areaKey])) {
+                    $area[$areaKey]['active']++;
+                }
 
                 if (isset($distribution[$current->source])) {
                     $distribution[$current->source]++;

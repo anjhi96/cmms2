@@ -172,7 +172,7 @@ test('is a conflict when the device expects an existing follow-up but none exist
 });
 
 test('a PIC BUL is forbidden from OIL_AUDIT_FOLLOW_UP_SAVE via sync (Oil Audit follow-up is WWD-only), matching the online route\'s role middleware', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL]);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL')]);
     $audit = offlineFuAudit(offlineFuMachine());
 
     $payload = offlineFuPayload($audit->id, [['Bocor Oli', ['Kapstan 1']]], 'x', false, (string) Str::uuid());
@@ -184,7 +184,7 @@ test('a PIC BUL is forbidden from OIL_AUDIT_FOLLOW_UP_SAVE via sync (Oil Audit f
 });
 
 test('pic_user_id/pic_name/actioned_at always come from the authenticated user and the server clock, never from anything in the payload', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $someoneElse = User::factory()->create(['role' => User::ROLE_ADMIN, 'name' => 'Bukan Budi']);
     $audit = offlineFuAudit(offlineFuMachine());
 

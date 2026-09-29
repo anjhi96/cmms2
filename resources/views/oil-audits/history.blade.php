@@ -111,7 +111,7 @@
                         @if ($audit->needsFollowUp())
                             @php($fu = $audit->followUp)
                             @php($fuIsOld = old('_followup_audit') !== null && (int) old('_followup_audit') === $audit->id)
-                            @php($canDeleteFollowUp = in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD'], true))
+                            @php($canDeleteFollowUp = (auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
 
                             @if ($fu)
                                 <div class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-4" data-followup-view="{{ $audit->id }}">

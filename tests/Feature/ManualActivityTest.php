@@ -6,22 +6,22 @@ use App\Services\ActiveActivityResolver;
 
 function manualActor(string $role): User
 {
-    return User::factory()->create(['role' => $role, 'name' => 'Actor '.uniqid(), 'is_active' => true]);
+    return User::factory()->create([...roleAttributes($role), 'name' => 'Actor '.uniqid(), 'is_active' => true]);
 }
 
-function manualPic(string $role = User::ROLE_PIC_WWD, ?string $name = null): User
+function manualPic(string $role = 'PIC WWD', ?string $name = null): User
 {
     return User::factory()->create([
-        'role' => $role,
+        ...roleAttributes($role),
         'name' => $name ?? ('PIC '.uniqid()),
         'is_active' => true,
     ]);
 }
 
 test('ADMIN and KOORDINATOR see the + ACTIVITY button and the PIC picker', function () {
-    manualPic(User::ROLE_PIC_WWD, 'ZORRO');
+    manualPic('PIC WWD', 'ZORRO');
 
-    foreach ([User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD] as $role) {
+    foreach ([User::ROLE_ADMIN, 'KOORDINATOR WWD'] as $role) {
         $this->actingAs(manualActor($role))
             ->get(route('today-activity.index'))
             ->assertOk()
@@ -32,7 +32,7 @@ test('ADMIN and KOORDINATOR see the + ACTIVITY button and the PIC picker', funct
 });
 
 test('PIC does not see the + ACTIVITY button', function () {
-    foreach ([User::ROLE_PIC_WWD, User::ROLE_PIC_BUL] as $role) {
+    foreach (['PIC WWD', 'PIC BUL'] as $role) {
         $this->actingAs(manualActor($role))
             ->get(route('today-activity.index'))
             ->assertOk()
@@ -41,8 +41,8 @@ test('PIC does not see the + ACTIVITY button', function () {
 });
 
 test('a koordinator can start a manual activity for a PIC in their area, no machine', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $pic = manualPic(User::ROLE_PIC_WWD, 'BUDI');
+    $koor = manualActor('KOORDINATOR WWD');
+    $pic = manualPic('PIC WWD', 'BUDI');
 
     $this->actingAs($koor)
         ->post(route('today-activity.manual.store'), [
@@ -64,8 +64,8 @@ test('a koordinator can start a manual activity for a PIC in their area, no mach
 });
 
 test('a manual activity with a free-text location shows the ACTIVITY NAME (not "Manual Activity") on the monitor', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $pic = manualPic(User::ROLE_PIC_WWD, 'SARI');
+    $koor = manualActor('KOORDINATOR WWD');
+    $pic = manualPic('PIC WWD', 'SARI');
 
     $this->actingAs($koor)->post(route('today-activity.manual.store'), [
         'user_id' => $pic->id,
@@ -89,8 +89,8 @@ test('a manual activity with a free-text location shows the ACTIVITY NAME (not "
 });
 
 test('a PIC cannot start a manual activity (server-side, not just a hidden button)', function () {
-    $pic = manualActor(User::ROLE_PIC_WWD);
-    $target = manualPic(User::ROLE_PIC_WWD);
+    $pic = manualActor('PIC WWD');
+    $target = manualPic('PIC WWD');
 
     $this->actingAs($pic)
         ->post(route('today-activity.manual.store'), [
@@ -105,8 +105,8 @@ test('a PIC cannot start a manual activity (server-side, not just a hidden butto
 
 test('ADMIN can start a manual activity for a PIC in EITHER area', function () {
     $admin = manualActor(User::ROLE_ADMIN);
-    $wwd = manualPic(User::ROLE_PIC_WWD);
-    $bul = manualPic(User::ROLE_PIC_BUL);
+    $wwd = manualPic('PIC WWD');
+    $bul = manualPic('PIC BUL');
 
     foreach ([$wwd, $bul] as $pic) {
         $this->actingAs($admin)->post(route('today-activity.manual.store'), [
@@ -120,8 +120,8 @@ test('ADMIN can start a manual activity for a PIC in EITHER area', function () {
 });
 
 test('a KOORDINATOR cannot start a manual activity for a PIC outside their area', function () {
-    $koorWwd = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $picBul = manualPic(User::ROLE_PIC_BUL);
+    $koorWwd = manualActor('KOORDINATOR WWD');
+    $picBul = manualPic('PIC BUL');
 
     $this->actingAs($koorWwd)->post(route('today-activity.manual.store'), [
         'user_id' => $picBul->id,
@@ -133,9 +133,9 @@ test('a KOORDINATOR cannot start a manual activity for a PIC outside their area'
 });
 
 test('the PIC picker is area-scoped for a KOORDINATOR', function () {
-    $koorWwd = manualActor(User::ROLE_KOORDINATOR_WWD);
-    manualPic(User::ROLE_PIC_WWD, 'WWD PERSON');
-    manualPic(User::ROLE_PIC_BUL, 'BUL PERSON');
+    $koorWwd = manualActor('KOORDINATOR WWD');
+    manualPic('PIC WWD', 'WWD PERSON');
+    manualPic('PIC BUL', 'BUL PERSON');
 
     $this->actingAs($koorWwd)->get(route('today-activity.index'))
         ->assertOk()
@@ -144,7 +144,7 @@ test('the PIC picker is area-scoped for a KOORDINATOR', function () {
 });
 
 test('user_id and activity name are required', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
+    $koor = manualActor('KOORDINATOR WWD');
 
     $this->actingAs($koor)
         ->post(route('today-activity.manual.store'), ['started_at' => now()->format('Y-m-d\TH:i')])
@@ -154,8 +154,8 @@ test('user_id and activity name are required', function () {
 });
 
 test('starting a second activity for a PIC who is already active asks for END & START', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $pic = manualPic(User::ROLE_PIC_WWD);
+    $koor = manualActor('KOORDINATOR WWD');
+    $pic = manualPic('PIC WWD');
 
     ManualActivity::create([
         'user_id' => $pic->id,
@@ -175,8 +175,8 @@ test('starting a second activity for a PIC who is already active asks for END & 
 });
 
 test('END & START replaces the PIC previous manual activity as the active one', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $pic = manualPic(User::ROLE_PIC_WWD);
+    $koor = manualActor('KOORDINATOR WWD');
+    $pic = manualPic('PIC WWD');
 
     $first = ManualActivity::create([
         'user_id' => $pic->id,
@@ -202,8 +202,8 @@ test('END & START replaces the PIC previous manual activity as the active one', 
 });
 
 test('a manual activity from yesterday is not active today', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $pic = manualPic(User::ROLE_PIC_WWD);
+    $koor = manualActor('KOORDINATOR WWD');
+    $pic = manualPic('PIC WWD');
 
     ManualActivity::create([
         'user_id' => $pic->id,
@@ -215,9 +215,9 @@ test('a manual activity from yesterday is not active today', function () {
 });
 
 test('the conflict check is scoped to the target PIC, not the actor or other PICs', function () {
-    $koor = manualActor(User::ROLE_KOORDINATOR_WWD);
-    $picA = manualPic(User::ROLE_PIC_WWD);
-    $picB = manualPic(User::ROLE_PIC_WWD);
+    $koor = manualActor('KOORDINATOR WWD');
+    $picA = manualPic('PIC WWD');
+    $picB = manualPic('PIC WWD');
 
     ManualActivity::create(['user_id' => $picA->id, 'name' => 'A task', 'started_at' => now()->subHour()]);
 

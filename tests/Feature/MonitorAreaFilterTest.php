@@ -4,14 +4,14 @@ use App\Models\ManualActivity;
 use App\Models\PicAvailability;
 use App\Models\User;
 
-function filterPic(string $name, string $role = User::ROLE_PIC_WWD): User
+function filterPic(string $name, string $role = 'PIC WWD'): User
 {
-    return User::factory()->create(['name' => $name, 'role' => $role, 'is_active' => true]);
+    return User::factory()->create(['name' => $name, ...roleAttributes($role), 'is_active' => true]);
 }
 
 test('default (no ?area=) behaves exactly like before: every area, "ALL" selected', function () {
-    filterPic('ANDI', User::ROLE_PIC_WWD);
-    filterPic('BUDI', User::ROLE_PIC_BUL);
+    filterPic('ANDI', 'PIC WWD');
+    filterPic('BUDI', 'PIC BUL');
 
     $this->get(route('monitor'))->assertOk()
         ->assertSee('ANDI')->assertSee('BUDI')
@@ -23,8 +23,8 @@ test('default (no ?area=) behaves exactly like before: every area, "ALL" selecte
 });
 
 test('?area=WWD only returns WWD PICs everywhere in the payload', function () {
-    $wwd = filterPic('WWD PERSON', User::ROLE_PIC_WWD);
-    filterPic('BUL PERSON', User::ROLE_PIC_BUL);
+    $wwd = filterPic('WWD PERSON', 'PIC WWD');
+    filterPic('BUL PERSON', 'PIC BUL');
     ManualActivity::create(['user_id' => $wwd->id, 'name' => 'Repair', 'started_at' => now()]);
 
     $json = $this->getJson(route('monitor.data', ['area' => 'WWD']))->assertOk()->json();
@@ -39,8 +39,8 @@ test('?area=WWD only returns WWD PICs everywhere in the payload', function () {
 });
 
 test('?area=BUL only returns BUL PICs everywhere in the payload', function () {
-    filterPic('WWD PERSON', User::ROLE_PIC_WWD);
-    $bul = filterPic('BUL PERSON', User::ROLE_PIC_BUL);
+    filterPic('WWD PERSON', 'PIC WWD');
+    $bul = filterPic('BUL PERSON', 'PIC BUL');
 
     $json = $this->getJson(route('monitor.data', ['area' => 'BUL']))->assertOk()->json();
 
@@ -52,10 +52,10 @@ test('?area=BUL only returns BUL PICs everywhere in the payload', function () {
 });
 
 test('the WWD/BUL filter also scopes Area Status, Not Started and Inactive consistently', function () {
-    $wwdActive = filterPic('W ACTIVE', User::ROLE_PIC_WWD);
-    filterPic('W IDLE', User::ROLE_PIC_WWD);
-    $wwdOff = filterPic('W OFF', User::ROLE_PIC_WWD);
-    filterPic('B SOMEONE', User::ROLE_PIC_BUL);
+    $wwdActive = filterPic('W ACTIVE', 'PIC WWD');
+    filterPic('W IDLE', 'PIC WWD');
+    $wwdOff = filterPic('W OFF', 'PIC WWD');
+    filterPic('B SOMEONE', 'PIC BUL');
 
     ManualActivity::create(['user_id' => $wwdActive->id, 'name' => 'Task', 'started_at' => now()]);
     PicAvailability::create(['user_id' => $wwdOff->id, 'date' => now()->toDateString(), 'reason' => 'Cuti', 'set_by_user_id' => $wwdActive->id]);
@@ -72,8 +72,8 @@ test('the WWD/BUL filter also scopes Area Status, Not Started and Inactive consi
 });
 
 test('an unknown ?area= value is ignored and falls back to ALL', function () {
-    filterPic('ANDI', User::ROLE_PIC_WWD);
-    filterPic('BUDI', User::ROLE_PIC_BUL);
+    filterPic('ANDI', 'PIC WWD');
+    filterPic('BUDI', 'PIC BUL');
 
     $this->getJson(route('monitor.data', ['area' => 'NOT_AN_AREA']))->assertOk()
         ->assertJsonPath('totalPics', 2)
@@ -81,8 +81,8 @@ test('an unknown ?area= value is ignored and falls back to ALL', function () {
 });
 
 test('the monitor page selects WWD in the filter and pre-renders WWD-only data for ?area=WWD', function () {
-    filterPic('WWD PERSON', User::ROLE_PIC_WWD);
-    filterPic('BUL PERSON', User::ROLE_PIC_BUL);
+    filterPic('WWD PERSON', 'PIC WWD');
+    filterPic('BUL PERSON', 'PIC BUL');
 
     $this->get(route('monitor', ['area' => 'WWD']))->assertOk()
         ->assertSee('value="WWD" selected', false)
@@ -112,7 +112,7 @@ test('changing the filter does not reload the page and keeps auto-refresh: filte
 });
 
 test('adaptive typography: tiles use CSS container queries, not one fixed font size', function () {
-    filterPic('ANDI', User::ROLE_PIC_WWD);
+    filterPic('ANDI', 'PIC WWD');
     ManualActivity::create(['user_id' => User::where('name', 'ANDI')->value('id'), 'name' => 'Task', 'started_at' => now()]);
 
     $html = $this->get(route('monitor'))->assertOk()->getContent();
@@ -134,7 +134,7 @@ test('the treemap still fills the board with zero blank space at 1, 2, 5, 10 and
         ManualActivity::query()->delete();
 
         for ($i = 1; $i <= $n; $i++) {
-            $pic = filterPic("N{$n}-{$i}", User::ROLE_PIC_WWD);
+            $pic = filterPic("N{$n}-{$i}", 'PIC WWD');
             ManualActivity::create(['user_id' => $pic->id, 'name' => "Task {$i}", 'started_at' => now()]);
         }
 

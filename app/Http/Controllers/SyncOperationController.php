@@ -67,19 +67,35 @@ class SyncOperationController extends Controller
     /**
      * Mirrors the role scope each transaction type's ONLINE route already
      * enforces in routes/web.php — PM routes under
-     * role:ADMIN,KOORDINATOR WWD,KOORDINATOR BUL,PIC WWD,PIC BUL; Oil Audit
-     * routes under role:ADMIN,KOORDINATOR WWD,PIC WWD. Kept as an explicit
-     * map here (rather than route middleware) because a single sync
-     * endpoint carries every transaction type, each with its own scope.
+     * role:ADMIN,KOORDINATOR,PIC; Oil Audit routes under
+     * role:ADMIN,KOORDINATOR,PIC + area:WWD. Kept as an explicit map here
+     * (rather than route middleware) because a single sync endpoint carries
+     * every transaction type, each with its own scope. The area component
+     * of the Oil Audit scope (WWD-only — a permanent business rule, not
+     * general area authorization) is enforced separately by
+     * AREA_RESTRICTED_TYPES below, since role alone no longer encodes area.
      *
      * @var array<string, array<int, string>>
      */
     private const ALLOWED_ROLES = [
-        self::TYPE_PM_START => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_WWD, User::ROLE_PIC_BUL],
-        self::TYPE_PM_SAVE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_WWD, User::ROLE_PIC_BUL],
-        self::TYPE_PM_CHECKLIST_SAVE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_WWD, User::ROLE_PIC_BUL],
-        self::TYPE_OIL_AUDIT_CREATE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD],
-        self::TYPE_OIL_AUDIT_FOLLOW_UP_SAVE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD],
+        self::TYPE_PM_START => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR, User::ROLE_PIC],
+        self::TYPE_PM_SAVE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR, User::ROLE_PIC],
+        self::TYPE_PM_CHECKLIST_SAVE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR, User::ROLE_PIC],
+        self::TYPE_OIL_AUDIT_CREATE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR, User::ROLE_PIC],
+        self::TYPE_OIL_AUDIT_FOLLOW_UP_SAVE => [User::ROLE_ADMIN, User::ROLE_KOORDINATOR, User::ROLE_PIC],
+    ];
+
+    /**
+     * Transaction types restricted to a single area, mirroring the `area:`
+     * route middleware applied to their online equivalents. Oil Audit is
+     * permanently WWD-only (see OilAudit::AREA) — this is a business rule,
+     * not something that scales with new areas.
+     *
+     * @var array<string, string>
+     */
+    private const AREA_RESTRICTED_TYPES = [
+        self::TYPE_OIL_AUDIT_CREATE => OilAudit::AREA,
+        self::TYPE_OIL_AUDIT_FOLLOW_UP_SAVE => OilAudit::AREA,
     ];
 
     public function handle(Request $request): JsonResponse
@@ -109,6 +125,13 @@ class SyncOperationController extends Controller
             return $this->respond('forbidden', 403, [
                 'operation_uuid' => $uuid,
                 'message' => 'Role Anda tidak diizinkan untuk operasi ini.',
+            ]);
+        }
+
+        if (isset(self::AREA_RESTRICTED_TYPES[$type]) && ! $user->hasArea(self::AREA_RESTRICTED_TYPES[$type])) {
+            return $this->respond('forbidden', 403, [
+                'operation_uuid' => $uuid,
+                'message' => 'Area Anda tidak diizinkan untuk operasi ini.',
             ]);
         }
 
@@ -399,7 +422,7 @@ class SyncOperationController extends Controller
 
         // Same PIC-field guard as PMScheduleController::update(): only
         // ADMIN/KOORDINATOR may change the assigned PIC.
-        if (! in_array($user->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL'], true)) {
+        if (! $user->isAdmin() && ! $user->isKoordinator()) {
             $payload['pic'] = $pmSchedule->pic;
         }
 

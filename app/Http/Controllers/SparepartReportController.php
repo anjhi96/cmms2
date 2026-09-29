@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\PMSchedule;
 use App\Models\PMSparepart;
 use App\Models\User;
+use App\Support\AreaAuthorizationScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class SparepartReportController extends Controller
 {
-    private const AREAS = ['WWD', 'BUL'];
-
     private const STATUSES = ['ACTIVE', 'INACTIVE'];
 
     public function index(Request $request)
@@ -28,7 +28,7 @@ class SparepartReportController extends Controller
             ->filter(fn ($m) => $m >= 1 && $m <= 12)
             ->values()
             ->all();
-        $area = $user->isAdmin() && in_array($request->input('area'), self::AREAS, true)
+        $area = $user->isAdmin() && Area::active()->pluck('name')->contains($request->input('area'))
             ? $request->input('area')
             : null;
         $machine = $request->input('machine') ?: null;
@@ -121,7 +121,7 @@ class SparepartReportController extends Controller
             'machineTypes' => $machineTypes,
             'segments' => $segments,
             'statuses' => self::STATUSES,
-            'areas' => self::AREAS,
+            'areas' => Area::active()->orderBy('name')->pluck('name'),
             'isAdmin' => $user->isAdmin(),
             'selectedYear' => $year,
             'selectedMonths' => $months,
@@ -220,31 +220,11 @@ class SparepartReportController extends Controller
     }
 
     /**
-     * Identical role/area/PIC visibility rule to PMReportController and
-     * DashboardController — kept as its own copy here rather than a
-     * cross-controller refactor, matching this codebase's established
-     * convention of each report controller holding its own copy.
+     * The one shared role/area/PIC visibility rule — see
+     * App\Support\AreaAuthorizationScope.
      */
     private function applyScopeTo(Builder $query, User $user, ?string $area): Builder
     {
-        switch ($user->role) {
-            case User::ROLE_KOORDINATOR_WWD:
-                $query->where('pm_schedules.area', 'WWD');
-                break;
-            case User::ROLE_KOORDINATOR_BUL:
-                $query->where('pm_schedules.area', 'BUL');
-                break;
-            case User::ROLE_PIC_WWD:
-            case User::ROLE_PIC_BUL:
-                $query->where('pm_schedules.pic', $user->name);
-                break;
-            default:
-                if ($area) {
-                    $query->where('pm_schedules.area', $area);
-                }
-                break;
-        }
-
-        return $query;
+        return AreaAuthorizationScope::apply($query, $user, 'pm_schedules.area', 'pm_schedules.pic', $area);
     }
 }

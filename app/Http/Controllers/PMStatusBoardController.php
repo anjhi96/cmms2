@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\PMSchedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -10,24 +11,23 @@ use Illuminate\Support\Facades\Auth;
 class PMStatusBoardController extends Controller
 {
     /**
-     * Maps the lowercase URL segment (route-constrained to these keys, see
-     * routes/web.php) to the uppercase area value stored on pm_schedules.
-     */
-    public const AREA_CODES = [
-        'wwd' => 'WWD',
-        'bul' => 'BUL',
-    ];
-
-    /**
      * Public PM Status Board — read-only view for production team.
      * No authentication required. One area per URL (/pm-status/wwd,
-     * /pm-status/bul) — area is a route constraint, not a filter, so the
-     * query never mixes areas. Displays schedule status: OPEN/CLOSED, plan
-     * date, actual completion, and GAP DAY (realtime calc, not stored).
+     * /pm-status/gripper, ...) — area is a route constraint, not a filter,
+     * so the query never mixes areas. Displays schedule status: OPEN/CLOSED,
+     * plan date, actual completion, and GAP DAY (realtime calc, not stored).
+     *
+     * The slug is resolved against the live Area master list (not a
+     * hardcoded map) so a newly added area gets a working URL immediately;
+     * an unknown or inactive slug 404s rather than silently falling back to
+     * "all areas". No compile-time route constraint is used here (see
+     * routes/web.php) since a DB-driven allowlist would go stale the moment
+     * `route:cache` runs.
      */
     public function index(Request $request, string $area)
     {
-        $areaCode = self::AREA_CODES[$area];
+        $areaModel = Area::where('slug', $area)->active()->firstOrFail();
+        $areaCode = $areaModel->name;
 
         $now = Carbon::now('Asia/Jakarta');
 
@@ -105,6 +105,7 @@ class PMStatusBoardController extends Controller
             'currentYear' => $year,
             'currentArea' => $areaCode,
             'areaSlug' => $area,
+            'areas' => Area::active()->orderBy('name')->get(),
             'periodLabel' => $now->translatedFormat('F Y'),
             'hideSidebar' => ! Auth::check(),
             'hideTopbar' => ! Auth::check(),

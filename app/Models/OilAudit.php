@@ -10,10 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class OilAudit extends Model
 {
     /**
-     * Scope Oil Audit is restricted to — extracted from
-     * OilAuditController's private AUDIT_AREA/AUDIT_MACHINE_TYPES constants
-     * so the same scope can be reused outside the controller (e.g. by the
-     * offline sync handler) without redefining it a second time.
+     * Business rule, not authorization: Oil Audit is permanently a WWD-only
+     * module — this is intentional and must not be made dynamic even though
+     * Area is now master data. Enforced at the route level via the `area`
+     * middleware (see routes/web.php) and, for the offline-sync path, via
+     * SyncOperationController::AREA_RESTRICTED_TYPES. Extracted here so the
+     * same scope can be reused outside the controller without redefining it
+     * a second time.
      */
     public const AREA = 'WWD';
 
@@ -141,6 +144,17 @@ class OilAudit extends Model
     {
         return $this->area === self::AREA
             && in_array($this->machine_type, self::MACHINE_TYPES, true);
+    }
+
+    /**
+     * Read/UI convenience relation onto the Area master row matching this
+     * audit's `area` string. Deliberately NOT named area() — `area` is
+     * already a real column on this model, and Eloquent always resolves
+     * $model->area to that column, never to a same-named relation method.
+     */
+    public function areaMaster(): BelongsTo
+    {
+        return $this->belongsTo(Area::class, 'area', 'name');
     }
 
     public function conditionLabel(): string

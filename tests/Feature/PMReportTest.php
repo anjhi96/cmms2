@@ -75,7 +75,7 @@ test('area filter is admin-only and defaults to all areas', function () {
 });
 
 test('koordinator area filter is ignored and fixed to their own area', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
     $wwd = makeReportMachine(['area' => 'WWD']);
     $bul = makeReportMachine(['area' => 'BUL']);
 
@@ -93,7 +93,7 @@ test('koordinator area filter is ignored and fixed to their own area', function 
 });
 
 test('pic only sees their own pm schedules regardless of filters', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Andi']);
     $machine = makeReportMachine(['area' => 'WWD']);
 
     makeReportPm($machine, ['pic' => 'Andi', 'plan_date' => '2026-05-01']);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AreaController;
 use App\Http\Controllers\CostReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardGuestController;
@@ -50,11 +51,13 @@ Route::get('/m/{machine}', [MachineHistoryController::class, 'show']);
 // status and GAP DAY before requesting a schedule shift. Reuses the
 // existing PM Schedule data/status; adds no new PM workflow.
 // Area is a route segment (not a filter) so each area gets its own public
-// URL and data never mixes across areas; whereIn 404s any area outside
-// wwd/bul instead of silently falling back to "all areas".
+// URL and data never mixes across areas. The valid slug list is master
+// data (see Area Management), not a compile-time whereIn — a whereIn here
+// would go stale under `route:cache` the moment a new area is added, so the
+// controller resolves the slug against Area itself and 404s on an unknown
+// or inactive one.
 Route::get('/pm-status/{area}', [PMStatusBoardController::class, 'index'])
-    ->name('pm-status.show')
-    ->whereIn('area', ['wwd', 'bul']);
+    ->name('pm-status.show');
 
 Route::get('/scan', [QrScannerController::class, 'index'])->name('qr.scan');
 
@@ -99,11 +102,20 @@ Route::middleware([
             'update',
             'destroy',
         ]);
+
+    Route::resource('areas', AreaController::class)
+        ->only([
+            'index',
+            'create',
+            'store',
+            'edit',
+            'update',
+        ]);
 });
 
 Route::middleware([
     'auth',
-    'role:ADMIN,KOORDINATOR WWD,KOORDINATOR BUL',
+    'role:ADMIN,KOORDINATOR',
 ])->group(function () {
     Route::resource('machines', MachineController::class);
     Route::put('/machines/{machine}', [MachineController::class, 'update'])->name('machines.update');
@@ -156,7 +168,7 @@ Route::middleware([
 
 Route::middleware([
     'auth',
-    'role:ADMIN,KOORDINATOR WWD,KOORDINATOR BUL,PIC WWD,PIC BUL',
+    'role:ADMIN,KOORDINATOR,PIC',
 ])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -184,9 +196,14 @@ Route::middleware([
     Route::patch('/greasings/{greasing}/findings/{finding}', [GreasingController::class, 'updateFinding'])->name('greasings.findings.update');
 });
 
+// Oil Audit is a permanent WWD-only business rule (see OilAudit::AREA), not
+// something that scales to every area — the extra 'area:WWD' middleware
+// enforces it declaratively alongside the base-role check, since
+// OilAuditController itself has no per-user area check of its own.
 Route::middleware([
     'auth',
-    'role:ADMIN,KOORDINATOR WWD,PIC WWD',
+    'role:ADMIN,KOORDINATOR,PIC',
+    'area:WWD',
 ])->group(function () {
     Route::get('/oil-audits/scan', [OilAuditController::class, 'scan'])->name('oil-audits.scan');
     Route::post('/oil-audits/start', [OilAuditController::class, 'startDaily'])->name('oil-audits.start-daily');

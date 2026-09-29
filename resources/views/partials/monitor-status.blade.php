@@ -2,7 +2,7 @@
     Right 25% — Maintenance Status:
       · Active PIC       N ACTIVE / M NOT STARTED / K INACTIVE
       · Activity Distribution  donut (CURRENTLY ACTIVE only)
-      · Area Status      WWD/BUL  x ACTIVE / y AVAILABLE
+      · Area Status      one row per active Area  x ACTIVE / y AVAILABLE
       · Not Started      list
       · Inactive         list (compact empty state)
     JS (renderStatus / render in today-activity-monitor) patches every part
@@ -14,7 +14,7 @@
     @param int   $totalPics
     @param array $notStarted
     @param array $inactive         [['name'=>string,'reason'=>string], ...]
-    @param array $area             ['WWD'=>['active'=>int,'available'=>int], 'BUL'=>...]
+    @param array $area             [areaName => ['active'=>int,'available'=>int], ...]
     @param array $counts           ['active'=>int,'notStarted'=>int,'inactive'=>int]
     @param bool  $isAdmin
 --}}

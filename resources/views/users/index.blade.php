@@ -55,6 +55,15 @@
                     <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
                         {{ $user->role }}
                     </span>
+                    @if ($user->area)
+                        <span class="ml-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                            {{ $user->area->name }}
+                        </span>
+                    @elseif ($user->isAdmin())
+                        <span class="ml-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                            All Areas
+                        </span>
+                    @endif
                 </td>
                 <td class="px-4 py-3">
                     @if ($user->is_active)
@@ -119,7 +128,14 @@
                 @endif
             </div>
             <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $user->role }}</span>
+                <div>
+                    <span class="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">{{ $user->role }}</span>
+                    @if ($user->area)
+                        <span class="ml-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{{ $user->area->name }}</span>
+                    @elseif ($user->isAdmin())
+                        <span class="ml-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">All Areas</span>
+                    @endif
+                </div>
                 <div class="flex items-center gap-2">
                     <a href="{{ route('users.edit', $user) }}"
                         class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">

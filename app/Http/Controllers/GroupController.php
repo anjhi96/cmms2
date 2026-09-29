@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\Group;
 use App\Models\Machine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class GroupController extends Controller
 {
@@ -26,17 +28,21 @@ class GroupController extends Controller
 
     public function create()
     {
-        return view('groups.create');
+        $areas = Area::active()->orderBy('name')->get();
+
+        return view('groups.create', compact('areas'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255|unique:groups,name',
+            'area_id' => ['nullable', Rule::exists('areas', 'id')->where('is_active', true)],
         ]);
 
         Group::create([
-            'name' => $request->name,
+            'name' => $validated['name'],
+            'area_id' => $validated['area_id'] ?? null,
         ]);
 
         return redirect()
@@ -50,13 +56,16 @@ class GroupController extends Controller
             ->orderBy('machine_number')
             ->get();
 
-        return view('groups.edit', compact('group', 'machines'));
+        $areas = Area::active()->orderBy('name')->get();
+
+        return view('groups.edit', compact('group', 'machines', 'areas'));
     }
 
     public function update(Request $request, Group $group)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:groups,name,' . $group->id,
+            'area_id' => ['nullable', Rule::exists('areas', 'id')->where('is_active', true)],
             'machine_ids' => 'nullable|array',
             'machine_ids.*' => 'exists:machines,id',
         ]);
@@ -66,6 +75,7 @@ class GroupController extends Controller
         DB::transaction(function () use ($group, $validated, $selectedMachineIds) {
             $group->update([
                 'name' => $validated['name'],
+                'area_id' => $validated['area_id'] ?? null,
             ]);
 
             // Assign the checked machines to this group (may move them out of

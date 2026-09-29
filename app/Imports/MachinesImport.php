@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Models\Area;
 use App\Models\Group;
 use App\Models\Machine;
 use Illuminate\Support\Collection;
@@ -24,6 +25,15 @@ class MachinesImport implements ToCollection
             fn (Group $group) => mb_strtolower(trim($group->name))
         );
 
+        // Area is validated against the live master list the same way —
+        // an uploaded value that matches no active Area is a row error, not
+        // a silently-written never-matching string (this is the main path
+        // through which a stray/misspelled area value used to sneak in
+        // unvalidated).
+        $activeAreaNames = Area::active()->pluck('name')->keyBy(
+            fn (string $name) => mb_strtolower($name)
+        );
+
         foreach ($rows->skip(1) as $index => $row) {
             $rowNumber = $index + 1;
 
@@ -37,7 +47,7 @@ class MachinesImport implements ToCollection
             }
 
             $machineType = trim($row[1] ?? '');
-            $area = trim($row[2] ?? '');
+            $rawArea = trim($row[2] ?? '');
             $status = strtoupper(trim($row[3] ?? 'ACTIVE'));
 
             $pmCycleValue = $row[4] ?? null;
@@ -80,6 +90,15 @@ class MachinesImport implements ToCollection
             if ($groupProvided && ! $resolvedGroup) {
                 $skippedCount++;
                 $errors[] = "Row {$rowNumber}: Group \"{$groupName}\" not found.";
+
+                continue;
+            }
+
+            $area = $activeAreaNames->get(mb_strtolower($rawArea));
+
+            if ($area === null) {
+                $skippedCount++;
+                $errors[] = "Row {$rowNumber}: Area \"{$rawArea}\" is not a known active area.";
 
                 continue;
             }

@@ -30,7 +30,12 @@
 
                 <div>
                     <label class="mb-2 block text-sm font-medium text-slate-700">Area</label>
-                    <input type="text" name="area" value="{{ old('area') }}" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                    <select name="area" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">
+                        <option value="">Select Area</option>
+                        @foreach ($areas as $areaOption)
+                            <option value="{{ $areaOption->name }}" @selected(old('area') === $areaOption->name)>{{ $areaOption->name }}</option>
+                        @endforeach
+                    </select>
                     @error('area')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror

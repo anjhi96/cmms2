@@ -22,7 +22,7 @@ use App\Services\ActiveActivityResolver;
  */
 function reactPic(string $name = 'Reactivation PIC'): User
 {
-    return User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => $name]);
+    return User::factory()->create([...roleAttributes('PIC WWD'), 'name' => $name]);
 }
 
 function reactPm(string $pic): PMSchedule

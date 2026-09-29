@@ -1,10 +1,23 @@
 <?php
 
+use App\Models\Area;
 use App\Models\Group;
 use App\Models\Greasing;
 use App\Models\Machine;
 use App\Models\OilAudit;
 use App\Models\User;
+
+/**
+ * Groups previously had no area column — area was guessed from the name
+ * (the old Group::inferredArea(), now removed). Area is now a real
+ * Group::area() FK, so tests must set it explicitly.
+ */
+function dashboardGroupInArea(string $name, string $areaName): Group
+{
+    $area = Area::firstOrCreate(['name' => $areaName], ['slug' => strtolower($areaName), 'is_active' => true]);
+
+    return Group::create(['name' => $name, 'area_id' => $area->id]);
+}
 
 function makeDashboardGreasing(Group $group, array $overrides = []): Greasing
 {
@@ -21,8 +34,8 @@ function makeDashboardGreasing(Group $group, array $overrides = []): Greasing
 }
 
 test('dashboard shows real greasing KPI matching the GreasingKpiCalculator formula', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-    $group = Group::create(['name' => 'WWD 1']);
+    $admin = User::factory()->admin()->create();
+    $group = dashboardGroupInArea('WWD 1', 'WWD');
 
     makeDashboardGreasing($group, ['status' => 'FINISH ON TIME']);
     makeDashboardGreasing($group, ['status' => 'FINISH']);
@@ -38,8 +51,8 @@ test('dashboard shows real greasing KPI matching the GreasingKpiCalculator formu
 });
 
 test('greasing card year and month filter scope the KPI independently of the PM filters', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-    $group = Group::create(['name' => 'WWD 1']);
+    $admin = User::factory()->admin()->create();
+    $group = dashboardGroupInArea('WWD 1', 'WWD');
 
     makeDashboardGreasing($group, ['status' => 'FINISH ON TIME', 'plan_date' => '2020-05-10']);
     makeDashboardGreasing($group, ['status' => 'OPEN', 'plan_date' => '2020-05-11']);
@@ -60,9 +73,9 @@ test('greasing card year and month filter scope the KPI independently of the PM 
 });
 
 test('greasing card follows the global page area filter, admin-only', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-    $wwdGroup = Group::create(['name' => 'WWD 1']);
-    $bulGroup = Group::create(['name' => 'BUL 1']);
+    $admin = User::factory()->admin()->create();
+    $wwdGroup = dashboardGroupInArea('WWD 1', 'WWD');
+    $bulGroup = dashboardGroupInArea('BUL 1', 'BUL');
 
     makeDashboardGreasing($wwdGroup, ['status' => 'OPEN', 'plan_date' => '2026-06-01']);
     makeDashboardGreasing($bulGroup, ['status' => 'OPEN', 'plan_date' => '2026-06-01']);
@@ -79,9 +92,9 @@ test('greasing card follows the global page area filter, admin-only', function (
 });
 
 test('greasing card global area filter is admin-only and never widens a koordinator past their own area', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
-    $wwdGroup = Group::create(['name' => 'WWD 1']);
-    $bulGroup = Group::create(['name' => 'BUL 1']);
+    $koordinator = User::factory()->koordinator()->forArea('BUL')->create();
+    $wwdGroup = dashboardGroupInArea('WWD 1', 'WWD');
+    $bulGroup = dashboardGroupInArea('BUL 1', 'BUL');
 
     makeDashboardGreasing($wwdGroup, ['status' => 'OPEN', 'plan_date' => '2026-06-01']);
     makeDashboardGreasing($bulGroup, ['status' => 'OPEN', 'plan_date' => '2026-06-02']);
@@ -101,7 +114,7 @@ test('greasing card global area filter is admin-only and never widens a koordina
 });
 
 test('greasing card shows empty state gracefully when there is no data this month', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $response = $this->actingAs($admin)->get(route('dashboard'));
 
@@ -110,7 +123,7 @@ test('greasing card shows empty state gracefully when there is no data this mont
 });
 
 test('oil audit section is visible to admin', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $machine = Machine::create(['machine_number' => 'MC-OIL1', 'area' => 'WWD', 'machine_type' => 'NDE', 'status' => 'ACTIVE']);
 
     OilAudit::create([
@@ -131,7 +144,7 @@ test('oil audit section is visible to admin', function () {
 });
 
 test('oil audit section is visible to koordinator wwd', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
+    $koordinator = User::factory()->koordinator()->forArea('WWD')->create();
 
     $response = $this->actingAs($koordinator)->get(route('dashboard'));
 
@@ -140,7 +153,7 @@ test('oil audit section is visible to koordinator wwd', function () {
 });
 
 test('oil audit section is visible to pic wwd', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->pic()->forArea('WWD')->create();
 
     $response = $this->actingAs($pic)->get(route('dashboard'));
 
@@ -149,7 +162,7 @@ test('oil audit section is visible to pic wwd', function () {
 });
 
 test('oil audit section is hidden for koordinator bul', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->koordinator()->forArea('BUL')->create();
 
     $response = $this->actingAs($koordinator)->get(route('dashboard'));
 
@@ -158,7 +171,7 @@ test('oil audit section is hidden for koordinator bul', function () {
 });
 
 test('oil audit section is hidden for pic bul', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL]);
+    $pic = User::factory()->pic()->forArea('BUL')->create();
 
     $response = $this->actingAs($pic)->get(route('dashboard'));
 
@@ -167,7 +180,7 @@ test('oil audit section is hidden for pic bul', function () {
 });
 
 test('oil audit counts reflect real database rows, not fabricated numbers', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $machine1 = Machine::create(['machine_number' => 'MC-OIL2', 'area' => 'WWD', 'machine_type' => 'NDE', 'status' => 'ACTIVE']);
     $machine2 = Machine::create(['machine_number' => 'MC-OIL3', 'area' => 'WWD', 'machine_type' => 'NDB', 'status' => 'ACTIVE']);
 
@@ -190,7 +203,7 @@ test('oil audit counts reflect real database rows, not fabricated numbers', func
 });
 
 test('pm completion trend chart renders the fixed 96 percent target', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $response = $this->actingAs($admin)->get(route('dashboard'));
 
@@ -199,7 +212,7 @@ test('pm completion trend chart renders the fixed 96 percent target', function (
 });
 
 test('sparepart usage card still renders after being moved to row two', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
 
     $response = $this->actingAs($admin)->get(route('dashboard'));
 

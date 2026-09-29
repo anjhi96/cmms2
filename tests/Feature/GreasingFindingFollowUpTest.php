@@ -114,8 +114,8 @@ test('closing a finding does not change greasing status, plan date, due date, cy
 });
 
 test('a pic without authorization cannot update a finding via direct request', function () {
-    $owner = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Owner PIC']);
-    $stranger = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Stranger PIC']);
+    $owner = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Owner PIC']);
+    $stranger = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Stranger PIC']);
     $greasing = followUpGreasing(['pic' => $owner->name]);
     $finding = $greasing->findings()->create(['finding' => 'Owner only finding', 'status' => 'OPEN']);
 
@@ -143,7 +143,7 @@ test('guest cannot update a finding via direct request', function () {
 });
 
 test('pic owner can follow up and close their own finding', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = followUpGreasing(['pic' => $pic->name]);
     $finding = $greasing->findings()->create(['finding' => 'My own finding', 'status' => 'OPEN']);
 
@@ -158,8 +158,8 @@ test('pic owner can follow up and close their own finding', function () {
 });
 
 test('admin and koordinator can close a finding regardless of assigned pic', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = followUpGreasing(['pic' => $pic->name]);
     $finding = $greasing->findings()->create(['finding' => 'Assigned to pic, closed by koordinator', 'status' => 'OPEN']);
 

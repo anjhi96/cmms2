@@ -36,8 +36,8 @@ test('visiting the old hub url returns 404', function () {
 });
 
 test('oil audit report link is visible to wwd-eligible roles', function () {
-    foreach ([User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD] as $role) {
-        $user = User::factory()->create(['role' => $role]);
+    foreach ([User::ROLE_ADMIN, 'KOORDINATOR WWD', 'PIC WWD'] as $role) {
+        $user = User::factory()->create([...roleAttributes($role)]);
 
         $response = $this->actingAs($user)->get(route('dashboard'));
 
@@ -46,8 +46,8 @@ test('oil audit report link is visible to wwd-eligible roles', function () {
 });
 
 test('oil audit report link is hidden from bul-only roles', function () {
-    foreach ([User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_BUL] as $role) {
-        $user = User::factory()->create(['role' => $role]);
+    foreach (['KOORDINATOR BUL', 'PIC BUL'] as $role) {
+        $user = User::factory()->create([...roleAttributes($role)]);
 
         $response = $this->actingAs($user)->get(route('dashboard'));
 
@@ -56,7 +56,7 @@ test('oil audit report link is hidden from bul-only roles', function () {
 });
 
 test('a pic role still sees the reports submenu with its allowed reports', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $response = $this->actingAs($pic)->get(route('dashboard'));
 

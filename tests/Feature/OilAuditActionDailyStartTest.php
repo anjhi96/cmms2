@@ -6,7 +6,7 @@ use App\Models\User;
 use Carbon\Carbon;
 
 test('a PIC who has not started the action activity today sees the prompt', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($pic)->get(route('oil-audits.report'))
         ->assertOk()
@@ -16,7 +16,7 @@ test('a PIC who has not started the action activity today sees the prompt', func
 
 test('a PIC who already started the action activity today does not see the prompt', function () {
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_action_started_at' => now(),
     ]);
 
@@ -28,7 +28,7 @@ test('a PIC who already started the action activity today does not see the promp
 test('the action prompt is independent from the oil audit scan prompt', function () {
     // Started the scan activity but NOT the action activity → action page still prompts.
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_started_at' => now(),
     ]);
 
@@ -39,7 +39,7 @@ test('the action prompt is independent from the oil audit scan prompt', function
 
 test('yesterday\'s action start does not suppress today\'s prompt', function () {
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_action_started_at' => now()->subDay(),
     ]);
 
@@ -49,8 +49,8 @@ test('yesterday\'s action start does not suppress today\'s prompt', function () 
 });
 
 test('non-PIC roles never see the action prompt', function () {
-    foreach ([User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD] as $role) {
-        $user = User::factory()->create(['role' => $role]);
+    foreach ([User::ROLE_ADMIN, 'KOORDINATOR WWD'] as $role) {
+        $user = User::factory()->create([...roleAttributes($role)]);
 
         $this->actingAs($user)->get(route('oil-audits.report'))
             ->assertOk()
@@ -59,7 +59,7 @@ test('non-PIC roles never see the action prompt', function () {
 });
 
 test('START records the time and stops the action prompt for the rest of the day', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $startedAt = now()->setTime(9, 45);
 
@@ -79,7 +79,7 @@ test('START records the time and stops the action prompt for the rest of the day
 
 test('a second START on the same day does not overwrite the original action start time', function () {
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_action_started_at' => Carbon::parse(now()->toDateString().' 08:00'),
     ]);
     $original = $pic->oil_audit_action_started_at->format('Y-m-d H:i');
@@ -92,7 +92,7 @@ test('a second START on the same day does not overwrite the original action star
 });
 
 test('START requires a datetime', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($pic)
         ->post(route('oil-audits.report.start-daily'), [])
@@ -102,7 +102,7 @@ test('START requires a datetime', function () {
 });
 
 test('starting the action activity creates no oil audit or follow-up record', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($pic)->post(route('oil-audits.report.start-daily'), [
         'started_at' => now()->format('Y-m-d\TH:i'),
@@ -113,8 +113,8 @@ test('starting the action activity creates no oil audit or follow-up record', fu
 });
 
 test('the action daily start mechanism is independent per PIC', function () {
-    $andi = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'oil_audit_action_started_at' => now()]);
-    $budi = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $andi = User::factory()->create([...roleAttributes('PIC WWD'), 'oil_audit_action_started_at' => now()]);
+    $budi = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($andi)->get(route('oil-audits.report'))
         ->assertDontSee('DO YOU WANT TO START OIL AUDIT ACTION?');

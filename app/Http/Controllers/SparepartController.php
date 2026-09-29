@@ -127,6 +127,10 @@ class SparepartController extends Controller
             ],
         ]);
 
+        // A large CSV can take longer than the default 30s; this request
+        // alone gets more room (server max_execution_time is untouched).
+        set_time_limit(300);
+
         try {
             Excel::import(
                 new SparepartsImport(),

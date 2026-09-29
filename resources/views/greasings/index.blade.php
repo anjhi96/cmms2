@@ -122,7 +122,7 @@
                         <td class="px-4 py-3 text-sm text-slate-700">{{ $greasing->plan_date->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700">{{ $greasing->due_date->format('d M Y') }}</td>
                         <td class="px-4 py-3 text-sm text-slate-700">
-                            @php($area = $greasing->group?->inferredArea())
+                            @php($area = $greasing->group?->area?->name)
                             @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()) && $area)
                                 <select data-id="{{ $greasing->id }}"
                                     class="assign-pic w-40 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm font-medium shadow-sm transition hover:border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
@@ -205,7 +205,7 @@
     {{-- ============ MOBILE: Card List (below md) ============ --}}
     <div class="space-y-3 md:hidden">
         @forelse ($greasings as $greasing)
-            @php($area = $greasing->group?->inferredArea())
+            @php($area = $greasing->group?->area?->name)
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="mb-3 flex items-start justify-between gap-2">
                     <div class="min-w-0">

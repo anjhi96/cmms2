@@ -12,13 +12,16 @@
             </p>
         </div>
 
-        {{-- AREA SWITCHER — navigation to each area's own URL, not a filter. --}}
+        {{-- AREA SWITCHER — navigation to each active area's own URL, not a
+             filter. Sourced from the live Area master list (passed in by
+             the controller), not a hardcoded map, so a newly added area
+             appears here automatically. --}}
         <div class="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Area switcher">
-            @foreach (\App\Http\Controllers\PMStatusBoardController::AREA_CODES as $slug => $code)
-                <a href="{{ route('pm-status.show', $slug) }}"
+            @foreach ($areas as $areaOption)
+                <a href="{{ route('pm-status.show', $areaOption->slug) }}"
                     class="rounded-md px-4 py-2 text-sm font-semibold transition
-                    {{ $areaSlug === $slug ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200' }}">
-                    {{ $code }}
+                    {{ $areaSlug === $areaOption->slug ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200' }}">
+                    {{ $areaOption->name }}
                 </a>
             @endforeach
         </div>

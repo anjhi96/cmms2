@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -102,10 +103,11 @@ class PMSchedule extends Model
     }
 
     /**
-     * Extracted verbatim from PMScheduleController::authorizeScheduleAccess()
-     * so the same access rule can be reused by both the online controller
-     * (via abort_unless) and the offline sync handler (as a plain bool,
-     * without aborting the whole request).
+     * Central single-record authorization gate, reused by both the online
+     * controller (via abort_unless) and the offline sync handler (as a plain
+     * bool, without aborting the whole request). ADMIN sees everything;
+     * KOORDINATOR is scoped to their own area; PIC is scoped to their own
+     * area AND their own assigned name.
      */
     public function isAccessibleBy(User $user): bool
     {
@@ -113,23 +115,27 @@ class PMSchedule extends Model
             return true;
         }
 
-        if ($user->isKoordinatorWwd()) {
-            return $this->area === 'WWD';
+        if ((! $user->isKoordinator() && ! $user->isPic()) || ! $user->area) {
+            return false;
         }
 
-        if ($user->isKoordinatorBul()) {
-            return $this->area === 'BUL';
+        if ($this->area !== $user->area->name) {
+            return false;
         }
 
-        if ($user->isPicWwd()) {
-            return $this->area === 'WWD' && $this->pic === $user->name;
-        }
+        return $user->isKoordinator() || $this->pic === $user->name;
+    }
 
-        if ($user->isPicBul()) {
-            return $this->area === 'BUL' && $this->pic === $user->name;
-        }
-
-        return false;
+    /**
+     * Read/UI convenience relation onto the Area master row matching this
+     * schedule's `area` string snapshot. Deliberately NOT named area() —
+     * `area` is already a real column on this model, and Eloquent always
+     * resolves $model->area to that column, never to a same-named relation
+     * method, so a relation named area() would be silently unreachable.
+     */
+    public function areaMaster(): BelongsTo
+    {
+        return $this->belongsTo(Area::class, 'area', 'name');
     }
 
     public function requiresOilChange(): bool
@@ -141,6 +147,11 @@ class PMSchedule extends Model
         ]);
     }
 
+    /**
+     * Business rule, not authorization: gearbox tracking (mainshaft/
+     * innershaft problems) is permanently WWD-only, regardless of how many
+     * other areas exist. Do not make this dynamic.
+     */
     public function isGearboxApplicable(): bool
     {
         return $this->area === 'WWD';

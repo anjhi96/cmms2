@@ -2,22 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\PMSchedule;
 use App\Models\User;
 use App\Services\PMReportKpiCalculator;
+use App\Support\AreaAuthorizationScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class PMReportController extends Controller
 {
-    /**
-     * Areas actually used by this application (PMSchedule.area is a free
-     * string column, but every import/UI only ever writes WWD or BUL — see
-     * DashboardController::AREAS).
-     */
-    private const AREAS = ['WWD', 'BUL'];
-
     private const STATUSES = ['OPEN', 'IN_PROGRESS', 'FINISHED', 'FINISHED_ON_TIME', 'MISSED'];
 
     public function index(Request $request)
@@ -37,8 +32,9 @@ class PMReportController extends Controller
 
         // Area filter is ADMIN-only — every other role is already fixed to
         // one area/pic by applyScopeTo() (same convention as the dashboard
-        // and Greasing Report).
-        $area = $user->isAdmin() && in_array($request->input('area'), self::AREAS, true)
+        // and Greasing Report). Allowed values come from the live Area
+        // master list, never a hardcoded array.
+        $area = $user->isAdmin() && Area::active()->pluck('name')->contains($request->input('area'))
             ? $request->input('area')
             : null;
         $machineType = $request->input('machine_type') ?: null;
@@ -234,56 +230,32 @@ class PMReportController extends Controller
     }
 
     /**
-     * Same role/area/PIC visibility rule as
-     * DashboardController::applyScopeTo() (that method is private on a
-     * different controller, and PMScheduleController::index() already
-     * implements this same rule a third time as an inline switch — kept as
-     * a separate copy here rather than a cross-controller refactor).
-     *
-     * ADMIN            -> ALL, or the given $area if provided
-     * KOORDINATOR WWD  -> fixed to WWD, $area ignored
-     * KOORDINATOR BUL  -> fixed to BUL, $area ignored
-     * PIC WWD / PIC BUL -> fixed to their own name, $area ignored
+     * The one shared role/area/PIC visibility rule (see
+     * App\Support\AreaAuthorizationScope) — ADMIN sees ALL or the given
+     * $area if provided; KOORDINATOR is fixed to their own area; PIC is
+     * fixed to their own area + own name.
      */
     private function applyScopeTo(Builder $query, User $user, ?string $area): Builder
     {
-        switch ($user->role) {
-            case User::ROLE_KOORDINATOR_WWD:
-                $query->where('area', 'WWD');
-                break;
-            case User::ROLE_KOORDINATOR_BUL:
-                $query->where('area', 'BUL');
-                break;
-            case User::ROLE_PIC_WWD:
-            case User::ROLE_PIC_BUL:
-                $query->where('pic', $user->name);
-                break;
-            default:
-                if ($area) {
-                    $query->where('area', $area);
-                }
-                break;
-        }
-
-        return $query;
+        return AreaAuthorizationScope::apply($query, $user, 'area', 'pic', $area);
     }
 
     private function userAreaMatches(User $user, string $area): bool
     {
-        return match ($user->role) {
-            User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD => $area === 'WWD',
-            User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_BUL => $area === 'BUL',
-            default => true,
-        };
+        return ($user->isKoordinator() || $user->isPic()) ? $user->hasArea($area) : true;
     }
 
     /**
      * Which areas the Area filter dropdown should offer: role permission
      * narrowed further by the optional ADMIN-only active area filter.
+     * Sourced from the live Area master list so a newly added area appears
+     * automatically.
      */
     private function visibleAreas(User $user, ?string $area): array
     {
-        $allowed = collect(self::AREAS)->filter(fn (string $a) => $this->userAreaMatches($user, $a))->values();
+        $allowed = Area::active()->orderBy('name')->pluck('name')
+            ->filter(fn (string $a) => $this->userAreaMatches($user, $a))
+            ->values();
 
         if ($area && $allowed->contains($area)) {
             return [$area];

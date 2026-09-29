@@ -7,7 +7,7 @@
             <p class="text-sm text-slate-500">Manage preventive maintenance schedules</p>
         </div>
 
-        @if (in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL']))
+        @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
             <form action="{{ route('pm-schedules.import') }}" method="POST" enctype="multipart/form-data"
                 class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:flex-row sm:items-center">
                 @csrf

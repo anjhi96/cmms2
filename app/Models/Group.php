@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Group extends Model
 {
     protected $fillable = [
         'name',
+        'area_id',
     ];
 
     public function machines(): HasMany
@@ -22,23 +24,15 @@ class Group extends Model
     }
 
     /**
-     * Group has no dedicated area column. The PIC area (WWD/BUL) it belongs
-     * to is inferred from its name, e.g. "WWD 1" => WWD, "Line BUL 2" => BUL.
-     * Returns null if the name contains neither, so callers can fall back
-     * to not offering a PIC dropdown at all.
+     * A real FK, backfilled once (see the
+     * 2026_09_29_090400_add_area_id_to_groups_table migration) from the same
+     * name-matching rule the old Group::inferredArea() used. Groups whose
+     * name matched neither WWD nor BUL stay area_id = null — Greasing's
+     * "exclude the opposite area" visibility rule depends on that null being
+     * preserved rather than defaulted.
      */
-    public function inferredArea(): ?string
+    public function area(): BelongsTo
     {
-        $name = strtoupper($this->name);
-
-        if (str_contains($name, 'WWD')) {
-            return 'WWD';
-        }
-
-        if (str_contains($name, 'BUL')) {
-            return 'BUL';
-        }
-
-        return null;
+        return $this->belongsTo(Area::class);
     }
 }

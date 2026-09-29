@@ -54,42 +54,49 @@ class Greasing extends Model
     }
 
     /**
-     * The area (WWD/BUL) this schedule belongs to. Greasing has no area
-     * column of its own — it is derived from the linked Group's name, the
-     * same rule Group::inferredArea() and GreasingReportController use.
+     * The area this schedule belongs to. Greasing has no area column of its
+     * own — it is derived from the linked Group's real `area` relation (see
+     * Group::area()).
      */
     public function inferredArea(): ?string
     {
-        return $this->group?->inferredArea();
+        return $this->group?->area?->name;
     }
 
     /**
      * Restricts a query to the schedules a user is allowed to see, giving
      * Greasing the same per-area authorization PMScheduleController applies
-     * to PM schedules: a WWD role (koordinator/PIC) never sees BUL-group
-     * schedules and a BUL role never sees WWD-group schedules, while PIC
-     * roles are additionally narrowed to schedules assigned to them by
-     * name. ADMIN (and any other role) sees everything.
+     * to PM schedules: a KOORDINATOR never sees a schedule confirmed to
+     * belong to a different area, and a PIC is additionally narrowed to
+     * schedules assigned to them by name. ADMIN sees everything.
      *
-     * The rule is expressed as "exclude the opposite area" rather than
-     * "only my area" so that a schedule whose Group name carries neither
-     * token (area indeterminate — see Group::inferredArea()) stays visible
-     * instead of silently disappearing.
+     * This is the relation-based counterpart of
+     * App\Support\AreaAuthorizationScope's rule (area reached via
+     * group.area rather than a direct column) — NOT an accidental
+     * reimplementation. It deliberately keeps the existing "exclude the
+     * opposite area" leniency: a schedule whose Group has no area set (area
+     * indeterminate) stays visible instead of disappearing, so a group that
+     * hasn't been assigned an area yet isn't silently hidden from everyone.
      */
     public function scopeVisibleToUser(Builder $query, User $user): Builder
     {
-        $notInArea = fn (string $area) => $query->whereDoesntHave(
-            'group',
-            fn (Builder $q) => $q->whereRaw('UPPER(name) LIKE ?', ['%'.$area.'%'])
-        );
+        if ($user->isAdmin()) {
+            return $query;
+        }
 
-        return match ($user->role) {
-            User::ROLE_KOORDINATOR_WWD => $notInArea('BUL'),
-            User::ROLE_KOORDINATOR_BUL => $notInArea('WWD'),
-            User::ROLE_PIC_WWD => $notInArea('BUL')->where('pic', $user->name),
-            User::ROLE_PIC_BUL => $notInArea('WWD')->where('pic', $user->name),
-            default => $query,
-        };
+        if ((! $user->isKoordinator() && ! $user->isPic()) || ! $user->area) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        $query->where(fn (Builder $q) => $q
+            ->whereDoesntHave('group.area')
+            ->orWhereHas('group.area', fn (Builder $qa) => $qa->where('areas.id', $user->area_id)));
+
+        if ($user->isPic()) {
+            $query->where('pic', $user->name);
+        }
+
+        return $query;
     }
 
     /**
@@ -104,15 +111,16 @@ class Greasing extends Model
             return true;
         }
 
-        $area = $this->inferredArea();
+        if ((! $user->isKoordinator() && ! $user->isPic()) || ! $user->area) {
+            return false;
+        }
 
-        return match ($user->role) {
-            User::ROLE_KOORDINATOR_WWD => $area !== 'BUL',
-            User::ROLE_KOORDINATOR_BUL => $area !== 'WWD',
-            User::ROLE_PIC_WWD => $area !== 'BUL' && $this->pic === $user->name,
-            User::ROLE_PIC_BUL => $area !== 'WWD' && $this->pic === $user->name,
-            default => false,
-        };
+        $area = $this->inferredArea();
+        $inScope = $area === null || $area === $user->area->name;
+
+        return $user->isKoordinator()
+            ? $inScope
+            : $inScope && $this->pic === $user->name;
     }
 
     public function findings(): HasMany

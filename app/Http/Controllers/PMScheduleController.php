@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HandlesActivityConflict;
 use App\Imports\PMScheduleImport;
+use App\Models\Area;
 use App\Models\Machine;
 use App\Models\MachineChecklist;
 use App\Models\MachineMeasurement;
@@ -19,9 +20,11 @@ use App\Models\User;
 use App\Services\PMChecklistSaveService;
 use App\Services\PMScheduleSaveService;
 use App\Services\PMStartService;
+use App\Support\AreaAuthorizationScope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
@@ -37,36 +40,22 @@ class PMScheduleController extends Controller
 
         $user = auth()->user();
 
-        switch ($user->role) {
+        // FILTER AREA — ADMIN may pass an explicit ?area=, everyone else is
+        // scoped to their own area/pic by AreaAuthorizationScope (ADMIN,
+        // KOORDINATOR, PIC — see App\Support\AreaAuthorizationScope).
+        $adminAreaFilter = $user->isAdmin() && $request->filled('area')
+            ? $request->area
+            : null;
 
-            case 'KOORDINATOR WWD':
-                $query->where('area', 'WWD');
-                break;
+        AreaAuthorizationScope::apply($query, $user, 'area', 'pic', $adminAreaFilter);
 
-            case 'KOORDINATOR BUL':
-                $query->where('area', 'BUL');
-                break;
-
-            case 'PIC WWD':
-            case 'PIC BUL':
-                $query->where('pic', $user->name);
-                break;
-
-            case 'ADMIN':
-            default:
-                // lihat semua
-                break;
-        }
-
-        $picsByArea = [
-            'WWD' => User::where('role', 'PIC WWD')
-                ->orderBy('name')
-                ->get(),
-
-            'BUL' => User::where('role', 'PIC BUL')
-                ->orderBy('name')
-                ->get(),
-        ];
+        $picsByArea = Area::active()->orderBy('name')->get()
+            ->mapWithKeys(fn (Area $area) => [
+                $area->name => User::where('role', User::ROLE_PIC)
+                    ->where('area_id', $area->id)
+                    ->orderBy('name')
+                    ->get(),
+            ]);
 
         // SEARCH
         if ($request->filled('search')) {
@@ -75,14 +64,6 @@ class PMScheduleController extends Controller
                     ->orWhere('machine_type', 'like', '%'.$request->search.'%')
                     ->orWhere('order_number', 'like', '%'.$request->search.'%');
             });
-        }
-
-        // FILTER AREA
-        if (
-            $user->role === 'ADMIN' &&
-            $request->filled('area')
-        ) {
-            $query->where('area', $request->area);
         }
 
         // FILTER MACHINE TYPE
@@ -212,14 +193,8 @@ class PMScheduleController extends Controller
         $this->authorizeScheduleAccess($pmSchedule);
         $user = auth()->user();
 
-        if (str_starts_with($user->role, 'PIC')) {
-
-            if ($pmSchedule->pic !== $user->name) {
-
-                abort(403);
-
-            }
-
+        if ($user->isPic() && $pmSchedule->pic !== $user->name) {
+            abort(403);
         }
         $bigProblems = MachineProblem::where(
             'machine_type',
@@ -279,15 +254,10 @@ class PMScheduleController extends Controller
 
         $lastPm = $lastPm ? Carbon::parse($lastPm) : null;
 
-        $picRole = match ($pmSchedule->area) {
-            'WWD' => 'PIC WWD',
-            'BUL' => 'PIC BUL',
-            default => null,
-        };
+        $scheduleArea = Area::where('name', $pmSchedule->area)->first();
 
-        $pics = User::when($picRole, function ($q) use ($picRole) {
-            $q->where('role', $picRole);
-        })
+        $pics = User::query()
+            ->when($scheduleArea, fn ($q) => $q->where('role', User::ROLE_PIC)->where('area_id', $scheduleArea->id))
             ->orderBy('name')
             ->get();
 
@@ -310,17 +280,11 @@ class PMScheduleController extends Controller
         $this->authorizeScheduleAccess($pmSchedule);
         $user = auth()->user();
 
-        if (str_starts_with($user->role, 'PIC')) {
-
-            if ($pmSchedule->pic !== $user->name) {
-
-                abort(403);
-
-            }
-
+        if ($user->isPic() && $pmSchedule->pic !== $user->name) {
+            abort(403);
         }
 
-        if (! in_array($user->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL'])) {
+        if (! $user->isAdmin() && ! $user->isKoordinator()) {
             $request->merge([
                 'pic' => $pmSchedule->pic,
             ]);
@@ -366,6 +330,13 @@ class PMScheduleController extends Controller
             $pmSchedule->id
         )->get()
             ->keyBy('machine_checklist_id');
+
+        // Temporary draft (Save Checklist rejected by Fill PM validation) overrides DB values per item
+        foreach ((array) session('pm_checklist_draft.'.$pmSchedule->id, []) as $row) {
+            if (! empty($row['machine_checklist_id'])) {
+                $pmChecklists[(int) $row['machine_checklist_id']] = (object) $row;
+            }
+        }
 
         // Decide execution / actual date for display on checklist page
         $executionDate = null;
@@ -433,6 +404,17 @@ class PMScheduleController extends Controller
 
         if (! empty($errors)) {
 
+            // Keep the user's unsaved checklist input (session only, never persisted to DB)
+            session()->put(
+                'pm_checklist_draft.'.$pmSchedule->id,
+                collect((array) $request->checklists)
+                    ->map(fn ($row) => Arr::only((array) $row, [
+                        'machine_checklist_id', 'clean', 'check', 'lubrication', 'replace', 'remarks',
+                    ]))
+                    ->values()
+                    ->all()
+            );
+
             return redirect()
                 ->route('pm-schedules.edit', $pmSchedule->id)
                 ->with(
@@ -443,6 +425,7 @@ class PMScheduleController extends Controller
         }
 
         $checklistService->save($pmSchedule, (array) $request->checklists);
+        session()->forget('pm_checklist_draft.'.$pmSchedule->id);
 
         return redirect()
             ->route('pm-schedules.index')
@@ -535,13 +518,9 @@ class PMScheduleController extends Controller
             $this->authorizeScheduleAccess($pmSchedule);
         }
 
-        $picRole = match ($pmSchedule->area) {
-            'WWD' => User::ROLE_PIC_WWD,
-            'BUL' => User::ROLE_PIC_BUL,
-            default => null,
-        };
+        $scheduleArea = Area::where('name', $pmSchedule->area)->first();
 
-        abort_unless($picRole, 403);
+        abort_unless($scheduleArea, 403);
 
         $request->validate([
             'pic' => [
@@ -549,7 +528,7 @@ class PMScheduleController extends Controller
                 'string',
                 'max:255',
                 Rule::exists('users', 'name')
-                    ->where(fn ($query) => $query->where('role', $picRole)),
+                    ->where(fn ($query) => $query->where('role', User::ROLE_PIC)->where('area_id', $scheduleArea->id)),
             ],
         ]);
 

@@ -2,59 +2,41 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
     public function index()
     {
-        $users = User::latest()->paginate(20);
+        $users = User::with('area')->latest()->paginate(20);
 
         return view('users.index', compact('users'));
     }
 
     public function create()
     {
-        $roles = [
-            User::ROLE_GUEST,
-            User::ROLE_ADMIN,
-            User::ROLE_KOORDINATOR_WWD,
-            User::ROLE_KOORDINATOR_BUL,
-            User::ROLE_PIC_WWD,
-            User::ROLE_PIC_BUL,
-        ];
+        $roles = User::ROLES;
+        $areas = Area::active()->orderBy('name')->get();
 
-        return view('users.create', compact('roles'));
+        return view('users.create', compact('roles', 'areas'));
     }
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
-            'role' => [
-                'required',
-                'in:' . implode(',', [
-                    User::ROLE_GUEST,
-                    User::ROLE_ADMIN,
-                    User::ROLE_KOORDINATOR_WWD,
-                    User::ROLE_KOORDINATOR_BUL,
-                    User::ROLE_PIC_WWD,
-                    User::ROLE_PIC_BUL,
-                ]),
-            ],
-        ]);
+        $validated = $this->validated($request);
 
         User::create([
             'name' => Str::title(strtolower(trim($validated['name']))),
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'area_id' => $validated['area_id'],
             'is_active' => true,
         ]);
 
@@ -65,22 +47,15 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $roles = [
-            User::ROLE_GUEST,
-            User::ROLE_ADMIN,
-            User::ROLE_KOORDINATOR_WWD,
-            User::ROLE_KOORDINATOR_BUL,
-            User::ROLE_PIC_WWD,
-            User::ROLE_PIC_BUL,
-        ];
+        $roles = User::ROLES;
+        $areas = Area::active()->orderBy('name')->get();
 
-        return view('users.edit', compact('user', 'roles'));
+        return view('users.edit', compact('user', 'roles', 'areas'));
     }
 
     public function update(Request $request, User $user)
     {
         $isCurrentUser = auth()->id() === $user->id;
-        
 
         // Admin tidak boleh mengubah role dirinya sendiri
         if ($isCurrentUser && $request->input('role') !== $user->role) {
@@ -99,35 +74,13 @@ class UserController extends Controller
                 ->withInput();
         }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                'unique:users,email,' . $user->id,
-            ],
-            'password' => ['nullable', 'string', 'min:8'],
-            'role' => [
-                'required',
-                'in:' . implode(',', [
-                    User::ROLE_GUEST,
-                    User::ROLE_ADMIN,
-                    User::ROLE_KOORDINATOR_WWD,
-                    User::ROLE_KOORDINATOR_BUL,
-                    User::ROLE_PIC_WWD,
-                    User::ROLE_PIC_BUL,
-                ]),
-            ],
-            'is_active' => ['required', 'boolean'],
-            'avatar' => ['nullable', 'image', 'max:2048'],
-            'remove_avatar' => ['nullable', 'boolean'],
-        ]);
+        $validated = $this->validated($request, $user);
 
         $data = [
             'name' => Str::title(strtolower(trim($validated['name']))),
             'email' => $validated['email'],
             'role' => $validated['role'],
+            'area_id' => $validated['area_id'],
             'is_active' => $validated['is_active'],
         ];
 
@@ -174,5 +127,50 @@ class UserController extends Controller
         return redirect()
             ->route('users.index')
             ->with('success', 'User deleted successfully.');
+    }
+
+    /**
+     * Shared store/update validation. Role and Area are validated
+     * independently (Area sourced from the live master list, never
+     * hardcoded), then Area is required exactly when the role needs one
+     * (KOORDINATOR/PIC) and forced null otherwise (ADMIN accesses every
+     * area; GUEST has no area, matching existing behaviour).
+     *
+     * @return array{name: string, email: string, password: ?string, role: string, area_id: ?int, is_active?: bool}
+     */
+    private function validated(Request $request, ?User $user = null): array
+    {
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user?->id),
+            ],
+            'password' => [$user ? 'nullable' : 'required', 'string', 'min:8'],
+            'role' => ['required', Rule::in(User::ROLES)],
+            'area_id' => [
+                Rule::requiredIf(in_array($request->input('role'), [User::ROLE_KOORDINATOR, User::ROLE_PIC], true)),
+                'nullable',
+                Rule::exists('areas', 'id')->where('is_active', true),
+            ],
+        ];
+
+        if ($user) {
+            $rules['is_active'] = ['required', 'boolean'];
+            $rules['avatar'] = ['nullable', 'image', 'max:2048'];
+            $rules['remove_avatar'] = ['nullable', 'boolean'];
+        }
+
+        $validated = $request->validate($rules);
+
+        // ADMIN and GUEST are never restricted to one area, regardless of
+        // what the form submitted (Area field is hidden for those roles).
+        $validated['area_id'] = in_array($validated['role'], [User::ROLE_KOORDINATOR, User::ROLE_PIC], true)
+            ? $validated['area_id']
+            : null;
+
+        return $validated;
     }
 }

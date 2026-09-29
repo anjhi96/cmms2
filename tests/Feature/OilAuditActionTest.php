@@ -39,8 +39,8 @@ test('guest role cannot access the action page', function () {
 });
 
 test('koordinator bul and pic bul cannot access the action page since oil audit is wwd-only', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL')]);
 
     $this->actingAs($koordinator)->get(route('oil-audits.report'))->assertForbidden();
     $this->actingAs($pic)->get(route('oil-audits.report'))->assertForbidden();

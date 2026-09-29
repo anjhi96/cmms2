@@ -7,7 +7,7 @@
             <p class="text-sm text-slate-500">Manage sparepart master data</p>
         </div>
 
-        @if (in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL']))
+        @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
         <form action="{{ route('spareparts.import') }}" method="POST" enctype="multipart/form-data"
             class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:flex-row sm:items-center">
             @csrf
@@ -98,7 +98,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Location</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Price</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
-                    @if (in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL']))
+                    @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                     @endif
                 </tr>
@@ -127,7 +127,7 @@
                                 <span class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">INACTIVE</span>
                             @endif
                         </td>
-                        @if (in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL']))
+                        @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-2">
                                 <a href="{{ route('spareparts.edit', $sparepart->id) }}" class="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-amber-600">Edit</a>
@@ -197,7 +197,7 @@
                         <div class="font-medium text-slate-700">$ {{ number_format($sparepart->price, 0, ',', '.') }}</div>
                     </div>
                 </div>
-                @if (in_array(auth()->user()->role, ['ADMIN', 'KOORDINATOR WWD', 'KOORDINATOR BUL']))
+                @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
                     <div class="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                         <a href="{{ route('spareparts.edit', $sparepart->id) }}" class="flex-1 rounded-lg bg-amber-500 px-3 py-2 text-center text-xs font-medium text-white transition hover:bg-amber-600">Edit</a>
                         <form action="{{ route('spareparts.destroy', $sparepart->id) }}" method="POST" class="flex-1">

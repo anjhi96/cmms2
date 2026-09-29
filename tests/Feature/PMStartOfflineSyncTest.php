@@ -66,7 +66,7 @@ function offlineStartPayload(int $pmScheduleId, string $uuid, string $startedAtL
 }
 
 test('PM_START idempotency: retrying the same operation_uuid never starts the PM a second time or moves start_time', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = offlineStartPmSchedule(offlineStartMachine(), ['pic' => 'Budi']);
     $uuid = (string) Str::uuid();
     $payload = offlineStartPayload($pm->id, $uuid);
@@ -100,7 +100,7 @@ test('PM_START idempotency: retrying the same operation_uuid never starts the PM
 });
 
 test('PM_START payload mismatch: same operation_uuid but a different pm_schedule_id is rejected, not started', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pmA = offlineStartPmSchedule(offlineStartMachine(), ['pic' => 'Budi']);
     $pmB = offlineStartPmSchedule(offlineStartMachine(), ['pic' => 'Budi']);
     $uuid = (string) Str::uuid();
@@ -121,7 +121,7 @@ test('PM_START payload mismatch: same operation_uuid but a different pm_schedule
 });
 
 test('PM_START via sync sends exactly the payload shape pmStart.js produces, including confirm_end_start=false', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = offlineStartPmSchedule(offlineStartMachine(), ['pic' => 'Budi']);
 
     $response = test()->actingAs($pic)->postJson(route('api.sync'), offlineStartPayload($pm->id, (string) Str::uuid(), '2026-09-14T08:30'));
@@ -136,7 +136,7 @@ test('PM_START via sync sends exactly the payload shape pmStart.js produces, inc
 });
 
 test('PM_START via sync still enforces one-active-activity-per-PIC when the operation is finally synced', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
 
     // PIC already has an active PM (started online/earlier) by the time
     // the offline-queued operation for a DIFFERENT PM finally syncs.

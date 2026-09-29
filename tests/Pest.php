@@ -48,3 +48,39 @@ function something()
 {
     // ..
 }
+
+/**
+ * Translates an OLD-style combined role label (e.g. "KOORDINATOR WWD",
+ * "PIC BUL") into the new, separate role + Area attributes (role and area
+ * are no longer combined — see App\Models\User / App\Models\Area). Several
+ * Feature tests were originally written directly against the combined role
+ * constants that used to exist on App\Models\User; this is the single
+ * translation point that keeps them working via
+ * `User::factory()->create([...roleAttributes('KOORDINATOR WWD'), ...])`
+ * without rewriting every individual test.
+ *
+ * @return array{role: string, area_id?: int}
+ */
+function roleAttributes(string $combinedRole): array
+{
+    [$baseRole, $areaName] = match ($combinedRole) {
+        'ADMIN' => [App\Models\User::ROLE_ADMIN, null],
+        'GUEST' => [App\Models\User::ROLE_GUEST, null],
+        'KOORDINATOR', 'KOORDINATOR WWD' => [App\Models\User::ROLE_KOORDINATOR, 'WWD'],
+        'KOORDINATOR BUL' => [App\Models\User::ROLE_KOORDINATOR, 'BUL'],
+        'PIC', 'PIC WWD' => [App\Models\User::ROLE_PIC, 'WWD'],
+        'PIC BUL' => [App\Models\User::ROLE_PIC, 'BUL'],
+        default => throw new InvalidArgumentException("roleAttributes(): unknown combined role [{$combinedRole}]"),
+    };
+
+    $attributes = ['role' => $baseRole];
+
+    if ($areaName !== null) {
+        $attributes['area_id'] = App\Models\Area::firstOrCreate(
+            ['name' => $areaName],
+            ['slug' => strtolower($areaName), 'is_active' => true]
+        )->id;
+    }
+
+    return $attributes;
+}

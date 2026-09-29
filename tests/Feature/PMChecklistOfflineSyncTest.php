@@ -230,7 +230,7 @@ test('PM_CHECKLIST_SAVE via sync is rejected as a conflict when the server statu
 });
 
 test('an unauthorized PIC cannot use PM_CHECKLIST_SAVE via sync for a PM Schedule that is not theirs', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = checklistMachine();
     $pm = checklistSchedule($machine, ['pic' => 'Andi', 'status' => 'IN_PROGRESS']);
     makeChecklistEligible($pm);

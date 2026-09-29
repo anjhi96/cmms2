@@ -50,7 +50,7 @@ function syncOaFollowUpPayload(array $problems, string $action = 'Ganti seal dan
 // ---------------------------------------------------------------------------
 
 test('OIL_AUDIT_CREATE via sync creates the audit using OilAuditCreateService', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $machine = syncOaMachine();
 
     $response = syncOaPost($pic, [
@@ -69,7 +69,7 @@ test('OIL_AUDIT_CREATE via sync creates the audit using OilAuditCreateService', 
 });
 
 test('OIL_AUDIT_CREATE via sync always uses the authenticated user, never a user id supplied in the payload', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $someoneElse = User::factory()->create(['role' => User::ROLE_ADMIN, 'name' => 'Bukan Budi']);
     $machine = syncOaMachine();
 
@@ -93,7 +93,7 @@ test('OIL_AUDIT_CREATE via sync always uses the authenticated user, never a user
 });
 
 test('OIL_AUDIT_CREATE via sync rejects a machine outside the WWD/NDE-NDB scope', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $outOfScope = syncOaMachine(['area' => 'BUL', 'machine_type' => 'BF']);
 
     syncOaPost($pic, [
@@ -106,7 +106,7 @@ test('OIL_AUDIT_CREATE via sync rejects a machine outside the WWD/NDE-NDB scope'
 });
 
 test('a PIC BUL is forbidden from OIL_AUDIT_CREATE via sync (Oil Audit is WWD-only)', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL'), 'name' => 'Budi']);
     $machine = syncOaMachine();
 
     syncOaPost($pic, [
@@ -114,6 +114,22 @@ test('a PIC BUL is forbidden from OIL_AUDIT_CREATE via sync (Oil Audit is WWD-on
         'transaction_type' => 'OIL_AUDIT_CREATE',
         'payload' => ['machine_id' => $machine->id, 'condition' => 'OKE'],
     ])->assertStatus(403)->assertJson(['status' => 'forbidden']);
+});
+
+test('a KOORDINATOR BUL is forbidden from OIL_AUDIT_CREATE via sync (Oil Audit is WWD-only, not role-only)', function () {
+    // Regression guard: role alone (KOORDINATOR) is allowed by ALLOWED_ROLES
+    // for this transaction type — it's the separate AREA_RESTRICTED_TYPES
+    // check that must still reject a non-WWD koordinator.
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL'), 'name' => 'Budi']);
+    $machine = syncOaMachine();
+
+    syncOaPost($koordinator, [
+        'operation_uuid' => (string) Str::uuid(),
+        'transaction_type' => 'OIL_AUDIT_CREATE',
+        'payload' => ['machine_id' => $machine->id, 'condition' => 'OKE'],
+    ])->assertStatus(403)->assertJson(['status' => 'forbidden']);
+
+    expect(OilAudit::count())->toBe(0);
 });
 
 // ---------------------------------------------------------------------------

@@ -7,8 +7,9 @@
                 <label for="dashAreaFilter" class="text-xs font-medium text-text-muted">Area</label>
                 <select id="dashAreaFilter" onchange="dashFilter('area', this.value)" class="border border-border-strong bg-surface text-text rounded px-2 py-1 text-sm">
                     <option value="" {{ $selectedArea ? '' : 'selected' }}>ALL</option>
-                    <option value="WWD" {{ $selectedArea === 'WWD' ? 'selected' : '' }}>WWD</option>
-                    <option value="BUL" {{ $selectedArea === 'BUL' ? 'selected' : '' }}>BUL</option>
+                    @foreach ($areas as $areaOption)
+                        <option value="{{ $areaOption }}" {{ $selectedArea === $areaOption ? 'selected' : '' }}>{{ $areaOption }}</option>
+                    @endforeach
                 </select>
             </div>
         @endif

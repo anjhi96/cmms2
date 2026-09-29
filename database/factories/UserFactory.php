@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Area;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -47,4 +48,46 @@ class UserFactory extends Factory
      * Indicate that the model has two-factor authentication configured.
      */
     public function withTwoFactor(): static {}
+
+    /**
+     * Role/Area states — the single place tests should build a
+     * role+area user from, replacing the old inline
+     * ['role' => User::ROLE_KOORDINATOR_WWD] construction (that combined
+     * role no longer exists). ADMIN/GUEST have no area; koordinator()/pic()
+     * leave area_id unset until chained with forArea().
+     */
+    public function admin(): static
+    {
+        return $this->state(fn () => ['role' => User::ROLE_ADMIN, 'area_id' => null]);
+    }
+
+    public function koordinator(): static
+    {
+        return $this->state(fn () => ['role' => User::ROLE_KOORDINATOR]);
+    }
+
+    public function pic(): static
+    {
+        return $this->state(fn () => ['role' => User::ROLE_PIC]);
+    }
+
+    public function guest(): static
+    {
+        return $this->state(fn () => ['role' => User::ROLE_GUEST, 'area_id' => null]);
+    }
+
+    /**
+     * Attaches (finding-or-creating by name) the given Area. Chain after
+     * koordinator()/pic(), e.g. User::factory()->koordinator()->forArea('WWD')->create().
+     */
+    public function forArea(Area|string $area): static
+    {
+        return $this->state(function () use ($area) {
+            $area = $area instanceof Area
+                ? $area
+                : Area::firstOrCreate(['name' => $area], ['slug' => Str::slug($area), 'is_active' => true]);
+
+            return ['area_id' => $area->id];
+        });
+    }
 }

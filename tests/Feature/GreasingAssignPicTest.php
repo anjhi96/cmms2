@@ -1,24 +1,65 @@
 <?php
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\Group;
 use App\Models\User;
 
+/**
+ * Accepts the OLD-style combined role labels this file's tests are written
+ * around, and translates each into the new base role + Area (role/area are
+ * separate now — see App\Models\User / App\Models\Area).
+ */
 function assignPicUser(string $role): User
 {
-    return User::factory()->create(['role' => $role]);
+    [$baseRole, $areaName] = match ($role) {
+        'ADMIN' => [User::ROLE_ADMIN, null],
+        'GUEST' => [User::ROLE_GUEST, null],
+        'KOORDINATOR WWD' => [User::ROLE_KOORDINATOR, 'WWD'],
+        'KOORDINATOR BUL' => [User::ROLE_KOORDINATOR, 'BUL'],
+        'PIC WWD' => [User::ROLE_PIC, 'WWD'],
+        'PIC BUL' => [User::ROLE_PIC, 'BUL'],
+    };
+
+    $attributes = ['role' => $baseRole];
+
+    if ($areaName !== null) {
+        $attributes['area_id'] = Area::firstOrCreate(
+            ['name' => $areaName],
+            ['slug' => strtolower($areaName), 'is_active' => true]
+        )->id;
+    }
+
+    return User::factory()->create($attributes);
 }
 
-test('group name determines the inferred pic area', function () {
-    expect((new Group(['name' => 'WWD 1']))->inferredArea())->toBe('WWD')
-        ->and((new Group(['name' => 'Line BUL 2']))->inferredArea())->toBe('BUL')
-        ->and((new Group(['name' => 'wwd lower']))->inferredArea())->toBe('WWD')
-        ->and((new Group(['name' => 'Something Else']))->inferredArea())->toBeNull();
+/**
+ * Groups previously had no area column — area was guessed from the name
+ * (the old Group::inferredArea(), now removed). Area is now a real
+ * Group::area() FK, so tests must set it explicitly.
+ */
+function groupInArea(string $name, ?string $areaName): Group
+{
+    $areaId = $areaName
+        ? Area::firstOrCreate(['name' => $areaName], ['slug' => strtolower($areaName), 'is_active' => true])->id
+        : null;
+
+    return Group::create(['name' => $name, 'area_id' => $areaId]);
+}
+
+test('group area relation reflects the area it was assigned', function () {
+    $wwdGroup = groupInArea('WWD 1', 'WWD');
+    $bulGroup = groupInArea('Line 2', 'BUL');
+    $unassignedGroup = groupInArea('Something Else', null);
+
+    expect($wwdGroup->area?->name)->toBe('WWD')
+        ->and($bulGroup->area?->name)->toBe('BUL')
+        ->and($unassignedGroup->area)->toBeNull();
 });
 
 test('admin can assign a pic wwd user to a schedule in a wwd group', function () {
     $admin = assignPicUser('ADMIN');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-1',
@@ -39,7 +80,7 @@ test('admin can assign a pic wwd user to a schedule in a wwd group', function ()
 
 test('a pic bul user cannot be assigned to a schedule in a wwd group', function () {
     $admin = assignPicUser('ADMIN');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-2',
@@ -60,7 +101,7 @@ test('a pic bul user cannot be assigned to a schedule in a wwd group', function 
 
 test('a pic wwd user cannot be assigned to a schedule in a bul group', function () {
     $admin = assignPicUser('ADMIN');
-    $group = Group::create(['name' => 'BUL 1']);
+    $group = groupInArea('BUL 1', 'BUL');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-3',
@@ -82,7 +123,7 @@ test('a pic wwd user cannot be assigned to a schedule in a bul group', function 
 test('selecting the blank option clears the assigned pic', function () {
     $admin = assignPicUser('ADMIN');
     $pic = assignPicUser('PIC WWD');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-4',
@@ -101,9 +142,9 @@ test('selecting the blank option clears the assigned pic', function () {
     expect($greasing->fresh()->pic)->toBeNull();
 });
 
-test('assigning pic on a group whose area cannot be inferred is rejected', function () {
+test('assigning pic on a group with no area assigned is rejected', function () {
     $admin = assignPicUser('ADMIN');
-    $group = Group::create(['name' => 'Unrelated Name']);
+    $group = groupInArea('Unrelated Name', null);
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-5',
@@ -123,7 +164,7 @@ test('assigning pic on a group whose area cannot be inferred is rejected', funct
 
 test('koordinator can assign a pic on a schedule in their own area', function () {
     $koordinatorWwd = assignPicUser('KOORDINATOR WWD');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-6',
@@ -143,7 +184,7 @@ test('koordinator can assign a pic on a schedule in their own area', function ()
 
 test('koordinator cannot assign a pic on a schedule outside their area', function () {
     $koordinatorBul = assignPicUser('KOORDINATOR BUL');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-6b',
@@ -162,7 +203,7 @@ test('koordinator cannot assign a pic on a schedule outside their area', functio
 });
 
 test('pic and guest cannot call the assign-pic endpoint directly', function (string $role) {
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     $greasing = Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-7',
@@ -184,7 +225,7 @@ test('pic and guest cannot call the assign-pic endpoint directly', function (str
 test('index only renders the pic dropdown for admin/koordinator, not for pic', function () {
     $admin = assignPicUser('ADMIN');
     $pic = assignPicUser('PIC WWD');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-8',
@@ -211,7 +252,7 @@ test('index dropdown only lists pic users from the matching area', function () {
     $admin = assignPicUser('ADMIN');
     $wwdPic = assignPicUser('PIC WWD');
     $bulPic = assignPicUser('PIC BUL');
-    $group = Group::create(['name' => 'WWD 1']);
+    $group = groupInArea('WWD 1', 'WWD');
     Greasing::create([
         'group_id' => $group->id,
         'order_number' => 'WO-9',

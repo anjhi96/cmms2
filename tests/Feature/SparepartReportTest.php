@@ -99,7 +99,7 @@ test('area wwd filter narrows to wwd usage only for admin', function () {
 });
 
 test('koordinator bul area is fixed regardless of the area filter param', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
     $wwdMachine = reportUsageMachine(['area' => 'WWD']);
     $bulMachine = reportUsageMachine(['area' => 'BUL']);
 
@@ -115,7 +115,7 @@ test('koordinator bul area is fixed regardless of the area filter param', functi
 });
 
 test('pic only sees usage from their own pm schedules', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Andi']);
     $machine = reportUsageMachine();
 
     reportUsage(reportUsagePmSchedule($machine, ['pic' => 'Andi', 'actual_date' => '2026-08-01']), reportUsageSparepart());

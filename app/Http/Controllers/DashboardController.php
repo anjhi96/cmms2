@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\Machine;
 use App\Models\OilAudit;
@@ -10,6 +11,7 @@ use App\Models\PMSchedule;
 use App\Models\PMSparepart;
 use App\Models\User;
 use App\Services\GreasingKpiCalculator;
+use App\Support\AreaAuthorizationScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -18,13 +20,6 @@ use Illuminate\Support\Str;
 
 class DashboardController extends Controller
 {
-    /**
-     * Areas actually used by this application (Machine/PMSchedule.area is a
-     * free string column, but every import/UI in the app only ever writes
-     * WWD or BUL — see Machine/PMSchedule migrations and Group::inferredArea()).
-     */
-    private const AREAS = ['WWD', 'BUL'];
-
     /**
      * Fixed company-wide PM completion target used to draw the reference
      * line on the trend chart. This is a display constant only — it does
@@ -50,7 +45,10 @@ class DashboardController extends Controller
         $month = $request->filled('month') ? (int) $request->input('month') : null;
         // Global area filter (top of page). Only ADMIN can override — every
         // other role is already fixed to one area/pic by applyScopeTo().
-        $area = $user->isAdmin() && in_array($request->input('area'), self::AREAS, true)
+        // Allowed values come from the live Area master list, never a
+        // hardcoded array, so a newly added area is filterable immediately.
+        $activeAreaNames = Area::active()->pluck('name');
+        $area = $user->isAdmin() && $activeAreaNames->contains($request->input('area'))
             ? $request->input('area')
             : null;
 
@@ -124,6 +122,7 @@ class DashboardController extends Controller
             'selectedGreasingMonth' => $greasingMonth,
             'greasingSubtitle' => $greasingSubtitle,
             'oilAudit' => $oilAudit,
+            'areas' => $activeAreaNames,
         ]);
     }
 
@@ -248,7 +247,7 @@ class DashboardController extends Controller
         $counts = $this->scoped($user, $area)
             ->whereYear('plan_date', $now->year)
             ->whereMonth('plan_date', $now->month)
-            ->whereIn('area', self::AREAS)
+            ->whereIn('area', Area::active()->pluck('name'))
             ->select('area', 'status')
             ->selectRaw('count(*) as total')
             ->groupBy('area', 'status')
@@ -271,20 +270,19 @@ class DashboardController extends Controller
 
     private function userAreaMatches(User $user, string $area): bool
     {
-        return match ($user->role) {
-            User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD => $area === 'WWD',
-            User::ROLE_KOORDINATOR_BUL, User::ROLE_PIC_BUL => $area === 'BUL',
-            default => true,
-        };
+        return ($user->isKoordinator() || $user->isPic()) ? $user->hasArea($area) : true;
     }
 
     /**
      * Which areas the current view should show: role permission narrowed
-     * further by the optional ADMIN-only global area filter.
+     * further by the optional ADMIN-only global area filter. Sourced from
+     * the live Area master list so a newly added area appears automatically.
      */
     private function visibleAreas(User $user, ?string $area): array
     {
-        $allowed = collect(self::AREAS)->filter(fn (string $a) => $this->userAreaMatches($user, $a))->values();
+        $allowed = Area::active()->orderBy('name')->pluck('name')
+            ->filter(fn (string $a) => $this->userAreaMatches($user, $a))
+            ->values();
 
         if ($area && $allowed->contains($area)) {
             return [$area];
@@ -398,7 +396,7 @@ class DashboardController extends Controller
             ->visibleToUser($user)
             ->whereYear('plan_date', $year)
             ->when($month, fn ($q) => $q->whereMonth('plan_date', $month))
-            ->when($area, fn ($q) => $q->whereHas('group', fn ($g) => $g->whereRaw('UPPER(name) LIKE ?', ['%'.$area.'%'])))
+            ->when($area, fn ($q) => $q->whereHas('group.area', fn ($a) => $a->where('name', $area)))
             ->select('status')
             ->selectRaw('count(*) as total')
             ->groupBy('status')
@@ -439,13 +437,16 @@ class DashboardController extends Controller
      */
     private function oilAuditSummary(User $user, ?string $area): ?array
     {
-        if (! in_array($user->role, [User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD], true)) {
+        if (! $user->isAdmin() && ! $user->hasArea(self::OIL_AUDIT_AREA)) {
             return null;
         }
 
-        // Oil Audit is WWD-only — if the global filter is explicitly set to
-        // BUL, there is nothing relevant to show.
-        if ($area === 'BUL') {
+        // Oil Audit is WWD-only (business rule, not authorization) — if the
+        // global filter is explicitly set to any other area, there is
+        // nothing relevant to show. Inclusion-based (must equal WWD) rather
+        // than exclusion-based (must not equal BUL), so a future GRIPPER
+        // filter also correctly hides this section.
+        if ($area && $area !== self::OIL_AUDIT_AREA) {
             return null;
         }
 
@@ -471,24 +472,6 @@ class DashboardController extends Controller
      */
     private function applyScopeTo(Builder $query, User $user, ?string $area = null): Builder
     {
-        switch ($user->role) {
-            case User::ROLE_KOORDINATOR_WWD:
-                $query->where('area', 'WWD');
-                break;
-            case User::ROLE_KOORDINATOR_BUL:
-                $query->where('area', 'BUL');
-                break;
-            case User::ROLE_PIC_WWD:
-            case User::ROLE_PIC_BUL:
-                $query->where('pic', $user->name);
-                break;
-            default:
-                if ($area) {
-                    $query->where('area', $area);
-                }
-                break;
-        }
-
-        return $query;
+        return AreaAuthorizationScope::apply($query, $user, 'area', 'pic', $area);
     }
 }

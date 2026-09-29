@@ -224,7 +224,7 @@ test('pdf export handles multiple checklist items across sections without error'
 });
 
 test('koordinator wwd cannot export pdf for a pm schedule in another area', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
     $machine = makeTestMachine(['area' => 'WWD']);
     $pmSchedule = makeTestPmSchedule($machine, ['area' => 'WWD']);
 
@@ -234,7 +234,7 @@ test('koordinator wwd cannot export pdf for a pm schedule in another area', func
 });
 
 test('pic wwd cannot export pdf for a pm schedule assigned to a different pic', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Andi']);
     $machine = makeTestMachine(['area' => 'WWD']);
     $pmSchedule = makeTestPmSchedule($machine, ['area' => 'WWD', 'pic' => 'Budi']);
 
@@ -244,7 +244,7 @@ test('pic wwd cannot export pdf for a pm schedule assigned to a different pic', 
 });
 
 test('pic wwd can export pdf for their own assigned pm schedule', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Andi']);
     $machine = makeTestMachine(['area' => 'WWD']);
     $pmSchedule = makeTestPmSchedule($machine, ['area' => 'WWD', 'pic' => 'Andi']);
 

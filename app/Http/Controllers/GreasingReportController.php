@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\GreasingFinding;
 use App\Models\Group;
@@ -36,9 +37,11 @@ class GreasingReportController extends Controller
             ->values()
             ->all();
 
-        // Area filter is ADMIN-only — every other role has no established
-        // per-area scoping for Greasing (see applyVisibility()).
-        $area = $user->isAdmin() && in_array($request->input('area'), ['WWD', 'BUL'], true)
+        // Area filter is ADMIN-only — every other role is already scoped by
+        // Greasing::scopeVisibleToUser() (see applyVisibility()). Allowed
+        // values come from the live Area master list, never a hardcoded
+        // array.
+        $area = $user->isAdmin() && Area::active()->pluck('name')->contains($request->input('area'))
             ? $request->input('area')
             : null;
 
@@ -153,6 +156,7 @@ class GreasingReportController extends Controller
         $groups = Group::whereIn('id', $groupIds)->orderBy('name')->get(['id', 'name']);
         $cycles = (clone $optionsScope)->whereNotNull('cycle')->distinct()->orderBy('cycle')->pluck('cycle');
         $pics = (clone $optionsScope)->whereNotNull('pic')->distinct()->orderBy('pic')->pluck('pic');
+        $areas = Area::active()->orderBy('name')->pluck('name');
 
         return view('reports.greasing.index', compact(
             'kpi',
@@ -175,24 +179,23 @@ class GreasingReportController extends Controller
             'search',
             'isAdmin',
             'isPic',
+            'areas',
         ));
     }
 
     /**
-     * Role/area visibility scope. Per-area authorization now mirrors
-     * PMScheduleController: a WWD role (koordinator/PIC) only ever sees
-     * WWD-group schedules, a BUL role only BUL-group ones, and PIC roles
-     * are additionally restricted to schedules assigned to them by name.
-     * ADMIN is unrestricted except for the ADMIN-only $area filter. The
-     * area a schedule belongs to is derived from its Group's name, since
-     * Greasing has no area column (see Greasing::scopeVisibleToUser()).
+     * Role/area visibility scope — see Greasing::scopeVisibleToUser() for
+     * the underlying rule (ADMIN sees all, KOORDINATOR their own area,
+     * PIC their own area + own name). ADMIN is additionally narrowed by the
+     * ADMIN-only $area filter here. The area a schedule belongs to comes
+     * from its Group's real `area` relation (Group::area()).
      */
     private function applyVisibility(Builder $query, User $user, ?string $area): Builder
     {
         $query->visibleToUser($user);
 
         if ($area) {
-            $query->whereHas('group', fn ($q) => $q->whereRaw('UPPER(name) LIKE ?', ['%'.$area.'%']));
+            $query->whereHas('group.area', fn ($q) => $q->where('name', $area));
         }
 
         return $query;

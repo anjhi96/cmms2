@@ -35,7 +35,7 @@ test('action date after due date resolves to FINISH', function () {
 });
 
 test('pic owner can execute their own schedule and add multiple findings', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $response = $this->actingAs($pic)->post(route('greasings.execute.store', $greasing), [
@@ -52,7 +52,7 @@ test('pic owner can execute their own schedule and add multiple findings', funct
 });
 
 test('new finding defaults to OPEN status', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $this->actingAs($pic)->post(route('greasings.execute.store', $greasing), [
@@ -66,7 +66,7 @@ test('new finding defaults to OPEN status', function () {
 });
 
 test('execution without an action date fails validation and does not save', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $response = $this->actingAs($pic)->post(route('greasings.execute.store', $greasing), [
@@ -79,7 +79,7 @@ test('execution without an action date fails validation and does not save', func
 });
 
 test('saving a valid execution redirects to the greasing index, not back to the execute page', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $response = $this->actingAs($pic)->post(route('greasings.execute.store', $greasing), [
@@ -90,7 +90,7 @@ test('saving a valid execution redirects to the greasing index, not back to the 
 });
 
 test('a finding can be updated to COMPLETED', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
     $finding = $greasing->findings()->create(['finding' => 'leak', 'status' => 'OPEN']);
 
@@ -104,7 +104,7 @@ test('a finding can be updated to COMPLETED', function () {
 });
 
 test('closing a finding does not change the greasing status', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing([
         'pic' => $pic->name,
         'action_date' => '2026-08-10',
@@ -122,8 +122,8 @@ test('closing a finding does not change the greasing status', function () {
 });
 
 test('a pic who is not assigned cannot execute the schedule via manual request', function () {
-    $owner = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Owner PIC']);
-    $stranger = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Stranger PIC']);
+    $owner = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Owner PIC']);
+    $stranger = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Stranger PIC']);
     $greasing = makeGreasing(['pic' => $owner->name]);
 
     $response = $this->actingAs($stranger)->post(route('greasings.execute.store', $greasing), [
@@ -135,8 +135,8 @@ test('a pic who is not assigned cannot execute the schedule via manual request',
 });
 
 test('a pic who is not assigned cannot even open the execute page', function () {
-    $owner = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Owner PIC']);
-    $stranger = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Stranger PIC']);
+    $owner = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Owner PIC']);
+    $stranger = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Stranger PIC']);
     $greasing = makeGreasing(['pic' => $owner->name]);
 
     $response = $this->actingAs($stranger)->get(route('greasings.execute', $greasing));
@@ -166,7 +166,7 @@ test('guest cannot post execution', function () {
 
 test('admin can execute any schedule regardless of assigned pic', function () {
     $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $response = $this->actingAs($admin)->get(route('greasings.execute', $greasing));
@@ -175,8 +175,8 @@ test('admin can execute any schedule regardless of assigned pic', function () {
 });
 
 test('koordinator can execute any schedule regardless of assigned pic', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $response = $this->actingAs($koordinator)->get(route('greasings.execute', $greasing));
@@ -185,7 +185,7 @@ test('koordinator can execute any schedule regardless of assigned pic', function
 });
 
 test('changing plan date on admin edit recalculates due date and status from existing action date', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
     $greasing = makeGreasing([
         'plan_date' => '2026-08-01',
         'due_date' => Greasing::calculateDueDate('2026-08-01'),
@@ -212,7 +212,7 @@ test('changing plan date on admin edit recalculates due date and status from exi
 });
 
 test('admin edit request cannot inject an arbitrary status', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
     $greasing = makeGreasing();
 
     $this->actingAs($koordinator)->put(route('greasings.update', $greasing), [
@@ -227,7 +227,7 @@ test('admin edit request cannot inject an arbitrary status', function () {
 });
 
 test('pic cannot access schedule create/edit/destroy routes', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $greasing = makeGreasing(['pic' => $pic->name]);
 
     $this->actingAs($pic)->get(route('greasings.create'))->assertForbidden();
@@ -236,8 +236,8 @@ test('pic cannot access schedule create/edit/destroy routes', function () {
 });
 
 test('pic index only shows their own schedules', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
-    $other = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
+    $other = User::factory()->create([...roleAttributes('PIC WWD')]);
     $mine = makeGreasing(['pic' => $pic->name]);
     $notMine = makeGreasing(['pic' => $other->name]);
 
@@ -249,7 +249,7 @@ test('pic index only shows their own schedules', function () {
 });
 
 test('non-admin sees the Execute button relabeled to Edit once a schedule is no longer OPEN', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $finished = makeGreasing([
         'pic' => $pic->name,
         'action_date' => '2026-08-10',
@@ -263,7 +263,7 @@ test('non-admin sees the Execute button relabeled to Edit once a schedule is no 
 });
 
 test('non-admin still sees Execute label while a schedule is OPEN', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     makeGreasing(['pic' => $pic->name, 'status' => 'OPEN']);
 
     $response = $this->actingAs($pic)->get(route('greasings.index'));

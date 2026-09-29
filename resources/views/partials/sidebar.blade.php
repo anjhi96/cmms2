@@ -75,13 +75,22 @@ document.addEventListener('alpine:init', () => {
         </div>
 
         @php
-        $userRole = strtoupper(auth()->user()->role);
+        $authUser = auth()->user();
+        $isAdmin = $authUser->isAdmin();
+        $isKoordinator = $authUser->isKoordinator();
+        $isPic = $authUser->isPic();
+        // Oil Audit is a permanent WWD-only business rule (see
+        // OilAudit::AREA), not general area authorization — hasArea()
+        // already returns true unconditionally for ADMIN, so this one flag
+        // covers every role that may see WWD-only menu items.
+        $hasWwdArea = $authUser->hasArea('WWD');
 
         $machineActive = request()->routeIs('machines.*');
         $groupActive = request()->routeIs('groups.*');
         $sparepartActive = request()->routeIs('spareparts.*');
         $reportActive = request()->routeIs('reports.*');
         $userActive = request()->routeIs('users.*');
+        $areaActive = request()->routeIs('areas.*');
         $dashboardActive = request()->routeIs('dashboard');
         $todayActivityActive = request()->routeIs('today-activity.*');
         $pmScheduleActive = request()->routeIs('pm-schedules.*');
@@ -105,10 +114,10 @@ document.addEventListener('alpine:init', () => {
         $reportsProblemActive = request()->routeIs('reports.problem');
         $reportsCostActive = request()->routeIs('reports.cost');
 
-        // Oil Audit is a WWD-only module (same role set as its own route
+        // Oil Audit is a WWD-only module (same rule as its own route
         // middleware) — hide its report link for roles that could never
         // open it, same rule the old Report Center hub used.
-        $oilAuditReportEligible = in_array($userRole, ['ADMIN', 'KOORDINATOR WWD', 'PIC WWD'], true);
+        $oilAuditReportEligible = $hasWwdArea;
 
         @endphp
         @php
@@ -149,9 +158,7 @@ document.addEventListener('alpine:init', () => {
             'icon' => '
             <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('pm-schedules.index'),
@@ -165,11 +172,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M3 10h18" />
             <path d="m9 16 2 2 4-4" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'PIC WWD' ||
-            $userRole === 'PIC BUL' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator || $isPic,
             ],
             [
             'route' => route('oil-audits.scan'),
@@ -180,9 +183,7 @@ document.addEventListener('alpine:init', () => {
             'icon' => '
             <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C4 11.1 3 13 3 15a7 7 0 0 0 7 7z" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'PIC WWD' ||
-            $userRole === 'KOORDINATOR WWD',
+            $hasWwdArea,
             ],
             [
             'route' => route('oil-audits.report'),
@@ -194,9 +195,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
             <path d="m9 14 2 2 4-4" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'PIC WWD' ||
-            $userRole === 'KOORDINATOR WWD',
+            $hasWwdArea,
             ],
             [
             'route' => route('greasings.index'),
@@ -211,11 +210,7 @@ document.addEventListener('alpine:init', () => {
             <path d="m5 19-3 3" />
             <path d="m14 4 6 6" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL'||
-            $userRole === 'PIC WWD'||
-            $userRole === 'PIC BUL',
+            $isAdmin || $isKoordinator || $isPic,
             ],
             ],
             ],
@@ -252,11 +247,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M12 18v-6" />
             <path d="M16 18v-3" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'PIC WWD' ||
-            $userRole === 'PIC BUL' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator || $isPic,
             'children' => [
             [
             'route' => route('reports.pm'),
@@ -328,9 +319,7 @@ document.addEventListener('alpine:init', () => {
             <rect x="4" y="4" width="16" height="16" rx="2" />
             <rect x="9" y="9" width="6" height="6" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('groups.index'),
@@ -342,9 +331,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" />
             <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('spareparts.index'),
@@ -369,9 +356,7 @@ document.addEventListener('alpine:init', () => {
             <path d="m13.5 4.5 2 2" />
             <path d="m4.5 13.5 2 2" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('machine-checklists.index'),
@@ -385,9 +370,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M13 12h8" />
             <path d="M13 18h8" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('machine-problems.index'),
@@ -399,9 +382,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M12 9v4" />
             <path d="M12 17h.01" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('machine-problem-findings.index'),
@@ -416,9 +397,7 @@ document.addEventListener('alpine:init', () => {
             <circle cx="12" cy="12" r="3" />
             <path d="m16 16-1.9-1.9" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             ],
             ],
@@ -441,9 +420,7 @@ document.addEventListener('alpine:init', () => {
             <path d="M12 18v-6" />
             <path d="m9 15 3 3 3-3" />',
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('users.index'),
@@ -456,13 +433,22 @@ document.addEventListener('alpine:init', () => {
             <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />',
             'visible' =>
-            $userRole === 'ADMIN',
+            $isAdmin,
+            ],
+            [
+            'route' => route('areas.index'),
+            'label' => 'Area Management',
+            'active' => $areaActive,
+            // map-pin (area/location master data)
+            'icon' => '
+            <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+            <circle cx="12" cy="10" r="3" />',
+            'visible' =>
+            $isAdmin,
             ],
             ],
             'visible' =>
-            $userRole === 'ADMIN' ||
-            $userRole === 'KOORDINATOR WWD'||
-            $userRole === 'KOORDINATOR BUL',
+            $isAdmin || $isKoordinator,
             ],
             ];
             @endphp

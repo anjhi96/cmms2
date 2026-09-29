@@ -329,7 +329,7 @@ test('delete: admin removes the follow-up and cascades problems + findings', fun
 });
 
 test('delete: koordinator wwd is allowed', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD')]);
     $audit = fuAudit(fuMachine());
     seedFollowUp($audit, [['Bocor Oli', ['Kapstan 1']]]);
 
@@ -341,7 +341,7 @@ test('delete: koordinator wwd is allowed', function () {
 });
 
 test('delete: pic wwd is forbidden', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
     $audit = fuAudit(fuMachine());
     seedFollowUp($audit, [['Bocor Oli', ['Kapstan 1']]]);
 

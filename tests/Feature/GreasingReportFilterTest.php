@@ -1,8 +1,21 @@
 <?php
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\Group;
 use App\Models\User;
+
+/**
+ * Groups previously had no area column — area was guessed from the name
+ * (the old Group::inferredArea(), now removed). Area is now a real
+ * Group::area() FK, so tests that filter by area must set it explicitly.
+ */
+function filterGroupInArea(string $name, string $areaName): Group
+{
+    $area = Area::firstOrCreate(['name' => $areaName], ['slug' => strtolower($areaName), 'is_active' => true]);
+
+    return Group::create(['name' => $name, 'area_id' => $area->id]);
+}
 
 function filterGreasing(Group $group, array $attributes = []): Greasing
 {
@@ -20,7 +33,7 @@ function filterGreasing(Group $group, array $attributes = []): Greasing
 }
 
 test('group filter narrows the greasing table', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $groupA = Group::create(['name' => 'Filter Group A '.uniqid()]);
     $groupB = Group::create(['name' => 'Filter Group B '.uniqid()]);
 
@@ -37,7 +50,7 @@ test('group filter narrows the greasing table', function () {
 });
 
 test('cycle filter narrows the greasing table', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $group = Group::create(['name' => 'Filter Group '.uniqid()]);
 
     filterGreasing($group, ['order_number' => 'ORD-4W', 'cycle' => '4W']);
@@ -53,7 +66,7 @@ test('cycle filter narrows the greasing table', function () {
 });
 
 test('pic filter narrows the greasing table for admin', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $group = Group::create(['name' => 'Filter Group '.uniqid()]);
 
     filterGreasing($group, ['order_number' => 'ORD-ANDI', 'pic' => 'Andi']);
@@ -69,7 +82,7 @@ test('pic filter narrows the greasing table for admin', function () {
 });
 
 test('pic filter dropdown is hidden for pic role users since they are already scoped', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->pic()->forArea('WWD')->create(['name' => 'Andi']);
 
     $response = $this->actingAs($pic)->get(route('reports.greasing'));
 
@@ -78,7 +91,7 @@ test('pic filter dropdown is hidden for pic role users since they are already sc
 });
 
 test('status filter narrows the greasing table', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $group = Group::create(['name' => 'Filter Group '.uniqid()]);
 
     filterGreasing($group, ['order_number' => 'ORD-OPEN', 'status' => 'OPEN']);
@@ -94,7 +107,7 @@ test('status filter narrows the greasing table', function () {
 });
 
 test('search matches order number', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $group = Group::create(['name' => 'Filter Group '.uniqid()]);
 
     filterGreasing($group, ['order_number' => 'UNIQUE-12345']);
@@ -109,7 +122,7 @@ test('search matches order number', function () {
 });
 
 test('search matches group name', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $uniqueGroup = Group::create(['name' => 'VeryUniqueGroupName']);
     $otherGroup = Group::create(['name' => 'SomeOtherGroup']);
 
@@ -125,9 +138,9 @@ test('search matches group name', function () {
 });
 
 test('filters and search combine with and logic', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
-    $wwdGroup = Group::create(['name' => 'WWD Combo '.uniqid()]);
-    $bulGroup = Group::create(['name' => 'BUL Combo '.uniqid()]);
+    $admin = User::factory()->admin()->create();
+    $wwdGroup = filterGroupInArea('WWD Combo '.uniqid(), 'WWD');
+    $bulGroup = filterGroupInArea('BUL Combo '.uniqid(), 'BUL');
 
     // Matches area + year + search.
     filterGreasing($wwdGroup, ['order_number' => '12345678', 'plan_date' => '2026-05-01']);
@@ -145,7 +158,7 @@ test('filters and search combine with and logic', function () {
 });
 
 test('filters affect the yearly chart trend, not just the table', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $groupA = Group::create(['name' => 'Chart Group A '.uniqid()]);
     $groupB = Group::create(['name' => 'Chart Group B '.uniqid()]);
 
@@ -167,7 +180,7 @@ test('filters affect the yearly chart trend, not just the table', function () {
 });
 
 test('pagination preserves active filters across pages', function () {
-    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $admin = User::factory()->admin()->create();
     $group = Group::create(['name' => 'Pagination Group '.uniqid()]);
 
     for ($i = 0; $i < 20; $i++) {

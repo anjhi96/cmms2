@@ -67,7 +67,7 @@ test('dashboard KPI numbers match real database counts for admin', function () {
 });
 
 test('koordinator wwd only sees WWD area data', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD, 'name' => 'Koor WWD']);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR WWD'), 'name' => 'Koor WWD']);
 
     $wwdMachine = makeMachine('MC-WWD', 'WWD');
     $bulMachine = makeMachine('MC-BUL', 'BUL');
@@ -85,7 +85,7 @@ test('koordinator wwd only sees WWD area data', function () {
 });
 
 test('koordinator bul only sees BUL area data', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
 
     $wwdMachine = makeMachine('MC-WWD2', 'WWD');
     $bulMachine = makeMachine('MC-BUL2', 'BUL');
@@ -100,8 +100,8 @@ test('koordinator bul only sees BUL area data', function () {
 });
 
 test('pic wwd only sees their own assigned schedules', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
-    $otherPic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
+    $otherPic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Andi']);
 
     $machine = makeMachine('MC-PIC1', 'WWD');
 
@@ -116,7 +116,7 @@ test('pic wwd only sees their own assigned schedules', function () {
 });
 
 test('pic bul only sees their own assigned schedules', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL, 'name' => 'Citra']);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL'), 'name' => 'Citra']);
 
     $machine = makeMachine('MC-PIC2', 'BUL');
 

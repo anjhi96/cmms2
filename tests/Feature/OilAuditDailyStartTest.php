@@ -5,7 +5,7 @@ use App\Models\User;
 use Carbon\Carbon;
 
 test('a PIC who has not started today sees the daily start prompt', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($pic)->get(route('oil-audits.scan'))
         ->assertOk()
@@ -15,7 +15,7 @@ test('a PIC who has not started today sees the daily start prompt', function () 
 
 test('a PIC who already started today does not see the prompt', function () {
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_started_at' => now(),
     ]);
 
@@ -26,7 +26,7 @@ test('a PIC who already started today does not see the prompt', function () {
 
 test('a PIC whose last start was yesterday sees the prompt again today', function () {
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_started_at' => now()->subDay(),
     ]);
 
@@ -36,8 +36,8 @@ test('a PIC whose last start was yesterday sees the prompt again today', functio
 });
 
 test('non-PIC roles never see the prompt', function () {
-    foreach ([User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD] as $role) {
-        $user = User::factory()->create(['role' => $role]);
+    foreach ([User::ROLE_ADMIN, 'KOORDINATOR WWD'] as $role) {
+        $user = User::factory()->create([...roleAttributes($role)]);
 
         $this->actingAs($user)->get(route('oil-audits.scan'))
             ->assertOk()
@@ -46,7 +46,7 @@ test('non-PIC roles never see the prompt', function () {
 });
 
 test('START records the start time and stops the prompt for the rest of the day', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $startedAt = now()->setTime(8, 15);
 
@@ -66,7 +66,7 @@ test('START records the start time and stops the prompt for the rest of the day'
 
 test('a second START on the same day does not overwrite the original start time', function () {
     $pic = User::factory()->create([
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'oil_audit_started_at' => Carbon::parse(now()->toDateString().' 07:00'),
     ]);
     $original = $pic->oil_audit_started_at->format('Y-m-d H:i');
@@ -79,7 +79,7 @@ test('a second START on the same day does not overwrite the original start time'
 });
 
 test('START requires a datetime', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($pic)
         ->post(route('oil-audits.start-daily'), [])
@@ -89,8 +89,8 @@ test('START requires a datetime', function () {
 });
 
 test('the daily start mechanism is independent per PIC', function () {
-    $andi = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'oil_audit_started_at' => now()]);
-    $budi = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $andi = User::factory()->create([...roleAttributes('PIC WWD'), 'oil_audit_started_at' => now()]);
+    $budi = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($andi)->get(route('oil-audits.scan'))
         ->assertDontSee('DO YOU WANT TO START OIL AUDIT?');
@@ -100,7 +100,7 @@ test('the daily start mechanism is independent per PIC', function () {
 });
 
 test('starting the daily activity creates no oil audit record', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD]);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD')]);
 
     $this->actingAs($pic)->post(route('oil-audits.start-daily'), ['started_at' => now()->format('Y-m-d\TH:i')]);
 

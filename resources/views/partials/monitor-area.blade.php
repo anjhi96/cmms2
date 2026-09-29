@@ -7,7 +7,8 @@
     TodayActivityMonitorController::board()), so only that row renders here
     — no misleading "0 ACTIVE / 0 AVAILABLE" row for the excluded area.
 
-    @param array $area  ['WWD'=>['active'=>int,'available'=>int], ...] (WWD and/or BUL)
+    @param array $area  [areaName => ['active'=>int,'available'=>int], ...] — one row
+    per active Area (see App\Models\Area), or just the filtered one.
 --}}
 @foreach ($area as $k => $stats)
     <div class="flex items-center justify-between gap-2 text-xs">

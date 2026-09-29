@@ -112,7 +112,7 @@ test('area bul filter narrows to bul cost only for admin', function () {
 });
 
 test('koordinator bul area is fixed regardless of the area filter param', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
     $wwdMachine = reportCostMachine(['area' => 'WWD']);
     $bulMachine = reportCostMachine(['area' => 'BUL', 'machine_type' => 'BF']);
 

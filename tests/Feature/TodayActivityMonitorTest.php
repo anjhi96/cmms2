@@ -10,7 +10,7 @@ function monitorPic(string $name): User
 {
     return User::factory()->create([
         'name' => $name,
-        'role' => User::ROLE_PIC_WWD,
+        ...roleAttributes('PIC WWD'),
         'is_active' => true,
     ]);
 }
@@ -123,8 +123,8 @@ test('non-ADMIN roles and guests do not see the Auto Refresh toggle', function (
         ->assertOk()
         ->assertDontSee('auto-refresh-toggle', false);
 
-    foreach ([User::ROLE_PIC_WWD, User::ROLE_KOORDINATOR_WWD] as $role) {
-        $user = User::factory()->create(['role' => $role, 'is_active' => true]);
+    foreach (['PIC WWD', 'KOORDINATOR WWD'] as $role) {
+        $user = User::factory()->create([...roleAttributes($role), 'is_active' => true]);
         $this->actingAs($user)
             ->get(route('monitor'))
             ->assertOk()
@@ -142,8 +142,8 @@ test('the monitor is not linked from the authenticated sidebar', function () {
 });
 
 test('inactive PIC and non-PIC roles are excluded from the board', function () {
-    $inactivePic = User::factory()->create(['name' => 'ZZZ INACTIVE', 'role' => User::ROLE_PIC_WWD, 'is_active' => false]);
-    $koor = User::factory()->create(['name' => 'ZZZ KOOR', 'role' => User::ROLE_KOORDINATOR_WWD, 'is_active' => true]);
+    $inactivePic = User::factory()->create(['name' => 'ZZZ INACTIVE', ...roleAttributes('PIC WWD'), 'is_active' => false]);
+    $koor = User::factory()->create(['name' => 'ZZZ KOOR', ...roleAttributes('KOORDINATOR WWD'), 'is_active' => true]);
     monitorStartedPm(monitorPic('ANDI'), 'M-1');
 
     $this->get(route('monitor'))
@@ -208,8 +208,8 @@ test('the data endpoint reports machine as null when the activity has none', fun
 });
 
 test('the data endpoint excludes inactive PIC and non-PIC roles', function () {
-    User::factory()->create(['name' => 'ZZZ INACTIVE', 'role' => User::ROLE_PIC_WWD, 'is_active' => false]);
-    User::factory()->create(['name' => 'ZZZ KOOR', 'role' => User::ROLE_KOORDINATOR_WWD, 'is_active' => true]);
+    User::factory()->create(['name' => 'ZZZ INACTIVE', ...roleAttributes('PIC WWD'), 'is_active' => false]);
+    User::factory()->create(['name' => 'ZZZ KOOR', ...roleAttributes('KOORDINATOR WWD'), 'is_active' => true]);
     monitorStartedPm(monitorPic('ANDI'), 'M-1');
 
     $json = $this->getJson(route('monitor.data'))->assertOk()->json();

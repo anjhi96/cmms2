@@ -38,20 +38,20 @@ test('guest role cannot access the oil audit report', function () {
 });
 
 test('koordinator bul cannot access the oil audit report', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
 
     $this->actingAs($koordinator)->get(route('reports.oil-audit'))->assertForbidden();
 });
 
 test('pic bul cannot access the oil audit report', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL]);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL')]);
 
     $this->actingAs($pic)->get(route('reports.oil-audit'))->assertForbidden();
 });
 
 test('admin koordinator wwd and pic wwd can all access the oil audit report', function () {
-    foreach ([User::ROLE_ADMIN, User::ROLE_KOORDINATOR_WWD, User::ROLE_PIC_WWD] as $role) {
-        $user = User::factory()->create(['role' => $role]);
+    foreach ([User::ROLE_ADMIN, 'KOORDINATOR WWD', 'PIC WWD'] as $role) {
+        $user = User::factory()->create([...roleAttributes($role)]);
 
         $this->actingAs($user)->get(route('reports.oil-audit'))->assertOk();
     }

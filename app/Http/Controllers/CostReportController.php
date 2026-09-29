@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\PMSchedule;
 use App\Models\PMSparepart;
 use App\Models\User;
+use App\Support\AreaAuthorizationScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class CostReportController extends Controller
 {
-    private const AREAS = ['WWD', 'BUL'];
-
     public function index(Request $request)
     {
         $user = $request->user();
@@ -26,7 +26,7 @@ class CostReportController extends Controller
             ->filter(fn ($m) => $m >= 1 && $m <= 12)
             ->values()
             ->all();
-        $area = $user->isAdmin() && in_array($request->input('area'), self::AREAS, true)
+        $area = $user->isAdmin() && Area::active()->pluck('name')->contains($request->input('area'))
             ? $request->input('area')
             : null;
         $machine = $request->input('machine') ?: null;
@@ -66,7 +66,7 @@ class CostReportController extends Controller
             'total_cost' => $totalCost,
             'sparepart_cost' => $sparepartCost,
             'top_machine' => $topMachineRow ? ['label' => $topMachineRow->label, 'cost' => (float) $topMachineRow->cost] : null,
-            'cost_by_area' => collect(self::AREAS)->mapWithKeys(
+            'cost_by_area' => Area::active()->orderBy('name')->pluck('name')->mapWithKeys(
                 fn (string $a) => [$a => (float) ($costByAreaRows->get($a)->cost ?? 0)]
             ),
         ];
@@ -132,7 +132,7 @@ class CostReportController extends Controller
             'years' => $years,
             'machines' => $machines,
             'machineTypes' => $machineTypes,
-            'areas' => self::AREAS,
+            'areas' => Area::active()->orderBy('name')->pluck('name'),
             'isAdmin' => $user->isAdmin(),
             'selectedYear' => $year,
             'selectedMonths' => $months,
@@ -195,29 +195,11 @@ class CostReportController extends Controller
     }
 
     /**
-     * Identical role/area/PIC visibility rule to
-     * SparepartReportController/PMReportController.
+     * The one shared role/area/PIC visibility rule — see
+     * App\Support\AreaAuthorizationScope.
      */
     private function applyScopeTo(Builder $query, User $user, ?string $area): Builder
     {
-        switch ($user->role) {
-            case User::ROLE_KOORDINATOR_WWD:
-                $query->where('pm_schedules.area', 'WWD');
-                break;
-            case User::ROLE_KOORDINATOR_BUL:
-                $query->where('pm_schedules.area', 'BUL');
-                break;
-            case User::ROLE_PIC_WWD:
-            case User::ROLE_PIC_BUL:
-                $query->where('pm_schedules.pic', $user->name);
-                break;
-            default:
-                if ($area) {
-                    $query->where('pm_schedules.area', $area);
-                }
-                break;
-        }
-
-        return $query;
+        return AreaAuthorizationScope::apply($query, $user, 'pm_schedules.area', 'pm_schedules.pic', $area);
     }
 }

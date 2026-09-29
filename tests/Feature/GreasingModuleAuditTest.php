@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\GreasingFinding;
 use App\Models\Group;
@@ -40,9 +41,33 @@ function auditCsv(string $filename, array $rows): UploadedFile
     return new UploadedFile($path, $filename, 'text/csv', null, true);
 }
 
+/**
+ * Accepts the OLD-style combined role labels this whole file's role-matrix
+ * helpers (allowedMasterRoles/blockedMasterRoles/broadRoles) are built
+ * around, and translates each into the new base role + Area (role/area are
+ * separate now — see App\Models\User / App\Models\Area). Kept as a single
+ * translation point so every ->with([...]) role-matrix test below keeps
+ * working unchanged.
+ */
 function auditUser(string $role, ?string $name = null): User
 {
-    $attributes = ['role' => $role];
+    [$baseRole, $areaName] = match ($role) {
+        'ADMIN' => [User::ROLE_ADMIN, null],
+        'GUEST' => [User::ROLE_GUEST, null],
+        'KOORDINATOR WWD' => [User::ROLE_KOORDINATOR, 'WWD'],
+        'KOORDINATOR BUL' => [User::ROLE_KOORDINATOR, 'BUL'],
+        'PIC WWD' => [User::ROLE_PIC, 'WWD'],
+        'PIC BUL' => [User::ROLE_PIC, 'BUL'],
+    };
+
+    $attributes = ['role' => $baseRole];
+
+    if ($areaName !== null) {
+        $attributes['area_id'] = Area::firstOrCreate(
+            ['name' => $areaName],
+            ['slug' => strtolower($areaName), 'is_active' => true]
+        )->id;
+    }
 
     if ($name !== null) {
         $attributes['name'] = $name;

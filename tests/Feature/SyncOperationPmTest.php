@@ -52,7 +52,7 @@ function syncPost(User $user, array $body)
 // ---------------------------------------------------------------------------
 
 test('PM_START via sync writes the same start_time/actual_date columns as the online endpoint', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = syncPmSchedule(syncPmMachine(), ['pic' => 'Budi']);
 
     $response = syncPost($pic, [
@@ -72,7 +72,7 @@ test('PM_START via sync writes the same start_time/actual_date columns as the on
 });
 
 test('PM_START via sync is rejected as a conflict when the device thinks the PM is not started but it already is', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = syncPmSchedule(syncPmMachine(), [
         'pic' => 'Budi',
         'status' => 'IN_PROGRESS',
@@ -95,7 +95,7 @@ test('PM_START via sync is rejected as a conflict when the device thinks the PM 
 });
 
 test('PM_START via sync reports an activity_conflict when the PIC already has another active activity', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
 
     syncPmSchedule(syncPmMachine(), [
         'pic' => 'Budi',
@@ -208,7 +208,7 @@ test('PM_SAVE via sync validates the payload with the exact same rules as the on
 });
 
 test('a non-admin PIC cannot use PM_SAVE via sync to change the assigned pic field', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = syncPmSchedule(syncPmMachine(), ['pic' => 'Budi']);
 
     syncPost($pic, [
@@ -296,7 +296,7 @@ test('PM_CHECKLIST_SAVE via sync reports validation_failed when the fill-pm data
 // ---------------------------------------------------------------------------
 
 test('a PIC cannot use sync to act on a PM Schedule assigned to a different PIC', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = syncPmSchedule(syncPmMachine(), ['pic' => 'Andi']);
 
     $response = syncPost($pic, [
@@ -310,7 +310,7 @@ test('a PIC cannot use sync to act on a PM Schedule assigned to a different PIC'
 });
 
 test('a PIC BUL cannot act on a WWD PM Schedule through sync', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_BUL, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC BUL'), 'name' => 'Budi']);
     $pm = syncPmSchedule(syncPmMachine(['area' => 'WWD']), ['area' => 'WWD', 'pic' => 'Budi']);
 
     syncPost($pic, [
@@ -339,7 +339,7 @@ test('an unknown transaction_type is rejected as validation_failed', function ()
 });
 
 test('existing online PM routes keep working unchanged after the sync endpoint is added', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = syncPmSchedule(syncPmMachine(), ['pic' => 'Budi']);
 
     $this->actingAs($pic)

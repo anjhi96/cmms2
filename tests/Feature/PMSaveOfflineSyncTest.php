@@ -250,7 +250,7 @@ test('PM_SAVE via sync never touches PM Checklist data — PM_SAVE and PM_CHECKL
 });
 
 test('an unauthorized PIC cannot use PM_SAVE via sync to save a PM Schedule that is not theirs', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
     $pm = pmSaveSchedule(pmSaveMachine(), ['pic' => 'Andi']);
 
     $response = test()->actingAs($pic)->postJson(route('api.sync'), pmSavePayload($pm->id, (string) Str::uuid(), [

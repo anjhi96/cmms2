@@ -62,8 +62,9 @@
                     <select id="monitor-area-filter"
                         class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-700 focus:border-blue-500 focus:outline-none">
                         <option value="ALL" @selected($selectedArea === 'ALL')>ALL</option>
-                        <option value="WWD" @selected($selectedArea === 'WWD')>WWD</option>
-                        <option value="BUL" @selected($selectedArea === 'BUL')>BUL</option>
+                        @foreach ($areas as $areaOption)
+                            <option value="{{ $areaOption }}" @selected($selectedArea === $areaOption)>{{ $areaOption }}</option>
+                        @endforeach
                     </select>
                 </label>
                 <div id="monitor-clock" class="text-3xl font-bold tabular-nums leading-none text-slate-900">--:--</div>
@@ -145,13 +146,16 @@
             const POLL_MS = Math.max(60000, parseInt(root.dataset.pollInterval, 10) || 60000);
             const DATA_URL = root.dataset.pollUrl;
 
-            // --- Area filter (ALL / WWD / BUL) — client-side only, no full
-            // page reload. poll() always reads the CURRENT selection, so it
-            // stays applied through every subsequent 60s auto-refresh tick. ---
+            // --- Area filter (ALL, or any active Area) — client-side only,
+            // no full page reload. poll() always reads the CURRENT
+            // selection, so it stays applied through every subsequent 60s
+            // auto-refresh tick. The select's options are rendered
+            // server-side from the live Area list, so any value it can hold
+            // is already valid — the server re-validates it anyway (see
+            // TodayActivityMonitorController::sanitizeArea()). ---
             const areaFilterEl = document.getElementById('monitor-area-filter');
             function currentArea () {
-                const v = areaFilterEl ? areaFilterEl.value : 'ALL';
-                return v === 'WWD' || v === 'BUL' ? v : 'ALL';
+                return areaFilterEl ? areaFilterEl.value : 'ALL';
             }
             function dataUrl () {
                 const a = currentArea();

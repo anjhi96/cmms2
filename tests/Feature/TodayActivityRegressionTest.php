@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Schema;
 
 function reg_pic(string $name = 'REG PIC'): User
 {
-    return User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => $name, 'is_active' => true]);
+    return User::factory()->create([...roleAttributes('PIC WWD'), 'name' => $name, 'is_active' => true]);
 }
 
 function reg_machine(string $number): Machine
@@ -180,7 +180,7 @@ test('starting Oil Audit Action while Oil Audit is already active prompts END & 
 // 7 + 11 — Manual Activity (for a PIC, with a machine) shows up on the monitor
 // ---------------------------------------------------------------------------
 test('a koordinator starts a Manual Activity for a PIC with a location and it appears on the monitor by its name', function () {
-    $koor = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD, 'is_active' => true]);
+    $koor = User::factory()->create([...roleAttributes('KOORDINATOR WWD'), 'is_active' => true]);
     $pic = reg_pic('MANUAL PIC');
 
     $this->actingAs($koor)->post(route('today-activity.manual.store'), [
@@ -287,7 +287,7 @@ test('access: ADMIN sees the monitor auto-refresh toggle', function () {
 });
 
 test('access: KOORDINATOR sees + ACTIVITY on Today\'s Activity, PIC does not', function () {
-    $koor = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD, 'is_active' => true]);
+    $koor = User::factory()->create([...roleAttributes('KOORDINATOR WWD'), 'is_active' => true]);
     $pic = reg_pic('PLAIN PIC');
 
     $this->actingAs($koor)->get(route('today-activity.index'))->assertOk()->assertSee('manual-activity-open', false);
@@ -448,7 +448,7 @@ test('a started Greasing shows its group on the monitor and reports machine null
 // Manual Activity started FOR that PIC. END & START must not complete work.
 // ---------------------------------------------------------------------------
 test('creating a Manual Activity for a PIC who has an active Oil Audit triggers the conflict flow', function () {
-    $koor = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD, 'is_active' => true]);
+    $koor = User::factory()->create([...roleAttributes('KOORDINATOR WWD'), 'is_active' => true]);
     $pic = reg_pic('OA PIC');
     $pic->update(['oil_audit_started_at' => now()->subHour()]);
 
@@ -472,7 +472,7 @@ test('creating a Manual Activity for a PIC who has an active Oil Audit triggers 
 // ---------------------------------------------------------------------------
 test('a PIC whose avatar file is missing still renders (initials, name, no exception)', function () {
     $pic = User::factory()->create([
-        'name' => 'GHOST AVATAR', 'role' => User::ROLE_PIC_WWD, 'is_active' => true,
+        'name' => 'GHOST AVATAR', ...roleAttributes('PIC WWD'), 'is_active' => true,
         'avatar_path' => 'avatars/does-not-exist.jpg',
     ]);
     ManualActivity::create(['user_id' => $pic->id, 'name' => 'Task', 'started_at' => now()]);

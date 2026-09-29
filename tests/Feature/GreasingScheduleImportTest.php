@@ -29,7 +29,7 @@ function importFixtures(): array
 {
     $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
     $group = Group::create(['name' => 'Line 1']);
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Budi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Budi']);
 
     return [$admin, $group, $pic];
 }

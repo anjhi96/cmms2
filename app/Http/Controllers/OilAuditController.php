@@ -487,8 +487,10 @@ class OilAuditController extends Controller
 
     public function destroyFollowUp(Request $request, OilAudit $oilAudit): RedirectResponse
     {
+        // Area (WWD) is already guaranteed by this route's 'area:WWD'
+        // middleware — only the role needs checking here.
         abort_unless(
-            in_array($request->user()->role, ['ADMIN', 'KOORDINATOR WWD'], true),
+            $request->user()->isAdmin() || $request->user()->isKoordinator(),
             403,
             'Hanya Admin atau Koordinator WWD yang dapat menghapus tindak lanjut.'
         );

@@ -13,9 +13,9 @@ function availAdmin(): User
     return User::factory()->create(['role' => User::ROLE_ADMIN, 'is_active' => true]);
 }
 
-function availPic(string $name, string $role = User::ROLE_PIC_WWD): User
+function availPic(string $name, string $role = 'PIC WWD'): User
 {
-    return User::factory()->create(['role' => $role, 'name' => $name, 'is_active' => true]);
+    return User::factory()->create([...roleAttributes($role), 'name' => $name, 'is_active' => true]);
 }
 
 function availPm(User $pic, string $machineNumber): PMSchedule
@@ -118,9 +118,9 @@ test('setting inactive changes nothing in PM / Manual data', function () {
 
 test('authorization: PIC cannot set inactive; KOORDINATOR only within their area', function () {
     $plainPic = availPic('PLAIN');
-    $koorBul = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL, 'is_active' => true]);
-    $wwdPic = availPic('WWD ONE', User::ROLE_PIC_WWD);
-    $bulPic = availPic('BUL ONE', User::ROLE_PIC_BUL);
+    $koorBul = User::factory()->create([...roleAttributes('KOORDINATOR BUL'), 'is_active' => true]);
+    $wwdPic = availPic('WWD ONE', 'PIC WWD');
+    $bulPic = availPic('BUL ONE', 'PIC BUL');
 
     $this->actingAs($plainPic)->post(route('today-activity.inactive.set'), [
         'user_id' => $wwdPic->id, 'reason' => 'Off',
@@ -141,7 +141,7 @@ test('authorization: PIC cannot set inactive; KOORDINATOR only within their area
 
 test('clear inactive returns the PIC to NOT STARTED (area-scoped auth)', function () {
     $admin = availAdmin();
-    $koorBul = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL, 'is_active' => true]);
+    $koorBul = User::factory()->create([...roleAttributes('KOORDINATOR BUL'), 'is_active' => true]);
     $pic = availPic('FANI');
 
     $this->actingAs($admin)->post(route('today-activity.inactive.set'), ['user_id' => $pic->id, 'reason' => 'Meeting']);
@@ -159,11 +159,11 @@ test('clear inactive returns the PIC to NOT STARTED (area-scoped auth)', functio
 test('monitor Area Status: available excludes inactive PICs', function () {
     // WWD: 3 PICs (1 active, 1 inactive, 1 not-started) -> 1 active / 2 available
     // BUL: 2 PICs (0 active, 0 inactive)                 -> 0 active / 2 available
-    $w1 = availPic('W ONE', User::ROLE_PIC_WWD);
-    $w2 = availPic('W TWO', User::ROLE_PIC_WWD);
-    $w3 = availPic('W THREE', User::ROLE_PIC_WWD);
-    availPic('B ONE', User::ROLE_PIC_BUL);
-    availPic('B TWO', User::ROLE_PIC_BUL);
+    $w1 = availPic('W ONE', 'PIC WWD');
+    $w2 = availPic('W TWO', 'PIC WWD');
+    $w3 = availPic('W THREE', 'PIC WWD');
+    availPic('B ONE', 'PIC BUL');
+    availPic('B TWO', 'PIC BUL');
 
     availPm($w1, 'M-9');
     PicAvailability::create(['user_id' => $w2->id, 'date' => now()->toDateString(), 'reason' => 'Cuti', 'set_by_user_id' => $w2->id]);
@@ -201,4 +201,28 @@ test('a plain PIC does not see PIC Availability or the inactive endpoint control
     $this->actingAs($pic)->get(route('today-activity.index'))->assertOk()
         ->assertDontSee('PIC Availability')
         ->assertDontSee('pic-inactive-modal', false);
+});
+
+test('an inactive PIC does not appear in the manual activity dropdown', function () {
+    $admin = availAdmin();
+    availPic('ON DUTY');
+    $inactivePic = availPic('OFF DUTY');
+    PicAvailability::create(['user_id' => $inactivePic->id, 'date' => now()->toDateString(), 'reason' => 'Cuti', 'set_by_user_id' => $admin->id]);
+
+    $this->actingAs($admin)->get(route('today-activity.index'))->assertOk()
+        ->assertSee('ON DUTY')
+        ->assertSee('OFF DUTY')            // still listed in the PIC Availability table...
+        ->assertDontSee('value="'.$inactivePic->id.'"', false); // ...but not as a dropdown option
+});
+
+test('starting a manual activity for a PIC marked inactive today is rejected', function () {
+    $admin = availAdmin();
+    $pic = availPic('RESTING PIC');
+    PicAvailability::create(['user_id' => $pic->id, 'date' => now()->toDateString(), 'reason' => 'Sakit', 'set_by_user_id' => $admin->id]);
+
+    $this->actingAs($admin)->post(route('today-activity.manual.store'), [
+        'user_id' => $pic->id, 'name' => 'Repair Conveyor', 'started_at' => now()->format('Y-m-d\TH:i'),
+    ])->assertSessionHas('warning');
+
+    expect(ManualActivity::where('user_id', $pic->id)->exists())->toBeFalse();
 });

@@ -82,12 +82,14 @@ class TodayActivityController extends Controller
             ->sortBy(fn (array $r) => [$r['isActive'] ? 0 : 1, -$r['activity']->startedAt->getTimestamp()])
             ->values();
 
+        $availablePics = $pics->reject(fn (User $pic) => $inactiveByUser->has($pic->id))->values();
+
         return view('today-activity.index', [
             'rows' => $rows,
             'activeRows' => $rows->where('isActive', true)->values(),
             'picStatuses' => $picStatuses,
             'canManage' => $canManage,
-            'assignablePics' => $canManage ? $pics : collect(),
+            'assignablePics' => $canManage ? $availablePics : collect(),
             'inactiveReasons' => PicAvailability::REASONS,
         ]);
     }
@@ -112,6 +114,15 @@ class TodayActivityController extends Controller
         ]);
 
         $target = $this->authorizedTarget($actor, (int) $validated['user_id']);
+
+        $isInactiveToday = PicAvailability::query()
+            ->where('user_id', $target->id)
+            ->whereDate('date', today())
+            ->exists();
+
+        if ($isInactiveToday) {
+            return back()->with('warning', $target->name.' is marked inactive today and cannot be assigned an activity.')->withInput();
+        }
 
         $machineNumber = trim((string) ($validated['machine_number'] ?? '')) ?: null;
         $startedAt = Carbon::parse($validated['started_at']);
@@ -310,26 +321,20 @@ class TodayActivityController extends Controller
 
     /**
      * PICs the actor may act for:
-     * ADMIN -> every active PIC (WWD + BUL);
-     * KOORDINATOR WWD / BUL -> active PICs in their own area only.
+     * ADMIN -> every active PIC, across every area;
+     * KOORDINATOR -> active PICs in their own area only.
      *
      * @return Collection<int, User>
      */
     private function assignablePics(User $actor): Collection
     {
-        $roles = match (true) {
-            $actor->isAdmin() => [User::ROLE_PIC_WWD, User::ROLE_PIC_BUL],
-            $actor->isKoordinatorWwd() => [User::ROLE_PIC_WWD],
-            $actor->isKoordinatorBul() => [User::ROLE_PIC_BUL],
-            default => [],
-        };
-
-        if ($roles === []) {
+        if (! $actor->isAdmin() && ! $actor->isKoordinator()) {
             return collect();
         }
 
         return User::query()
-            ->whereIn('role', $roles)
+            ->where('role', User::ROLE_PIC)
+            ->when(! $actor->isAdmin(), fn ($q) => $q->where('area_id', $actor->area_id))
             ->where('is_active', true)
             ->orderBy('name')
             ->get();

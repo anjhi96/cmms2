@@ -109,7 +109,7 @@ test('area bul filter narrows to bul problems only for admin', function () {
 });
 
 test('koordinator bul area is fixed regardless of the area filter param', function () {
-    $koordinator = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL]);
+    $koordinator = User::factory()->create([...roleAttributes('KOORDINATOR BUL')]);
     $wwdMachine = reportProblemMachine(['area' => 'WWD']);
     $bulMachine = reportProblemMachine(['area' => 'BUL', 'machine_type' => 'BF']);
 
@@ -123,7 +123,7 @@ test('koordinator bul area is fixed regardless of the area filter param', functi
 });
 
 test('pic only sees problems from their own pm schedules', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Andi']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Andi']);
     $machine = reportProblemMachine();
 
     reportPmProblem(reportProblemPmSchedule($machine, ['pic' => 'Andi', 'actual_date' => '2026-08-01']), reportMachineProblem());

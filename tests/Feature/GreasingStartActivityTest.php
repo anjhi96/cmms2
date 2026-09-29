@@ -22,7 +22,7 @@ function makeStartGreasing(array $attributes = []): Greasing
 }
 
 test('pic can start a greasing activity, writing only the start_time column', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing(['pic' => 'Sari']);
 
     $this->actingAs($pic)
@@ -39,7 +39,7 @@ test('pic can start a greasing activity, writing only the start_time column', fu
 });
 
 test('starting does not overwrite an already started greasing', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing(['pic' => 'Sari', 'start_time' => '2026-09-05 07:00:00']);
 
     $this->actingAs($pic)
@@ -50,7 +50,7 @@ test('starting does not overwrite an already started greasing', function () {
 });
 
 test('a completed greasing schedule cannot be started', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing([
         'pic' => 'Sari',
         'action_date' => '2026-08-10',
@@ -65,7 +65,7 @@ test('a completed greasing schedule cannot be started', function () {
 });
 
 test('a pic cannot start a greasing schedule assigned to someone else', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing(['pic' => 'Andi']);
 
     $this->actingAs($pic)
@@ -76,7 +76,7 @@ test('a pic cannot start a greasing schedule assigned to someone else', function
 });
 
 test('start without a datetime fails validation and saves nothing', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing(['pic' => 'Sari']);
 
     $this->actingAs($pic)
@@ -87,7 +87,7 @@ test('start without a datetime fails validation and saves nothing', function () 
 });
 
 test('the greasing index shows START next to the action button, then STARTED after starting', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing(['pic' => 'Sari']);
 
     $this->actingAs($pic)->get(route('greasings.index'))
@@ -103,7 +103,7 @@ test('the greasing index shows START next to the action button, then STARTED aft
 });
 
 test('greasing execution flow still works unchanged after a start', function () {
-    $pic = User::factory()->create(['role' => User::ROLE_PIC_WWD, 'name' => 'Sari']);
+    $pic = User::factory()->create([...roleAttributes('PIC WWD'), 'name' => 'Sari']);
     $greasing = makeStartGreasing(['pic' => 'Sari', 'start_time' => Carbon::parse('2026-09-06 08:30')]);
 
     $this->actingAs($pic)->post(route('greasings.execute.store', $greasing), [

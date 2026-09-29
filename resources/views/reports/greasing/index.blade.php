@@ -49,8 +49,9 @@
                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Area</label>
                 <select name="area" onchange="this.form.submit()" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
                     <option value="" {{ $area ? '' : 'selected' }}>All Area</option>
-                    <option value="WWD" {{ $area === 'WWD' ? 'selected' : '' }}>WWD</option>
-                    <option value="BUL" {{ $area === 'BUL' ? 'selected' : '' }}>BUL</option>
+                    @foreach ($areas as $areaOption)
+                        <option value="{{ $areaOption }}" {{ $area === $areaOption ? 'selected' : '' }}>{{ $areaOption }}</option>
+                    @endforeach
                 </select>
             </div>
         @endif
@@ -238,7 +239,7 @@
                             <tr class="hover:bg-slate-50">
                                 <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->plan_date->format('d M Y') }}</td>
                                 <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->action_date ? $greasing->action_date->format('d M Y') : '-' }}</td>
-                                <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->group?->inferredArea() ?? '-' }}</td>
+                                <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->group?->area?->name ?? '-' }}</td>
                                 <td class="px-3 py-2 text-sm font-semibold text-slate-800">{{ $greasing->group->name ?? '-' }}</td>
                                 <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->cycle }}</td>
                                 <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->order_number ?? '-' }}</td>
@@ -293,7 +294,7 @@
                         <div class="grid grid-cols-2 gap-y-2 border-t border-slate-100 pt-3 text-xs">
                             <div>
                                 <div class="text-slate-400">Area</div>
-                                <div class="font-medium text-slate-700">{{ $greasing->group?->inferredArea() ?? '-' }}</div>
+                                <div class="font-medium text-slate-700">{{ $greasing->group?->area?->name ?? '-' }}</div>
                             </div>
                             <div>
                                 <div class="text-slate-400">Plan Date</div>

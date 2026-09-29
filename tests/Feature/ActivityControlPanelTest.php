@@ -16,9 +16,9 @@ function panelAdmin(): User
     return User::factory()->create(['role' => User::ROLE_ADMIN, 'name' => 'ADMIN X', 'is_active' => true]);
 }
 
-function panelPic(string $name, string $role = User::ROLE_PIC_WWD): User
+function panelPic(string $name, string $role = 'PIC WWD'): User
 {
-    return User::factory()->create(['role' => $role, 'name' => $name, 'is_active' => true]);
+    return User::factory()->create([...roleAttributes($role), 'name' => $name, 'is_active' => true]);
 }
 
 function panelStartedPm(User $pic, string $machineNumber): PMSchedule
@@ -96,9 +96,9 @@ test('a plain PIC only sees their own activities and no manage actions', functio
 });
 
 test('a koordinator only sees / manages PICs in their own area', function () {
-    $koorWwd = User::factory()->create(['role' => User::ROLE_KOORDINATOR_WWD, 'is_active' => true]);
-    $wwd = panelPic('WWD ONE', User::ROLE_PIC_WWD);
-    $bul = panelPic('BUL ONE', User::ROLE_PIC_BUL);
+    $koorWwd = User::factory()->create([...roleAttributes('KOORDINATOR WWD'), 'is_active' => true]);
+    $wwd = panelPic('WWD ONE', 'PIC WWD');
+    $bul = panelPic('BUL ONE', 'PIC BUL');
     ManualActivity::create(['user_id' => $wwd->id, 'name' => 'W task', 'started_at' => now()]);
     ManualActivity::create(['user_id' => $bul->id, 'name' => 'B task', 'started_at' => now()]);
 
@@ -188,8 +188,8 @@ test('Finish is idempotent', function () {
 
 test('Finish is ADMIN / KOORDINATOR only and area-scoped', function () {
     $picActor = panelPic('PIC ACTOR');
-    $koorBul = User::factory()->create(['role' => User::ROLE_KOORDINATOR_BUL, 'is_active' => true]);
-    $wwdPic = panelPic('WWD TARGET', User::ROLE_PIC_WWD);
+    $koorBul = User::factory()->create([...roleAttributes('KOORDINATOR BUL'), 'is_active' => true]);
+    $wwdPic = panelPic('WWD TARGET', 'PIC WWD');
     $pm = panelStartedPm($wwdPic, 'M-3');
 
     $this->actingAs($picActor)->post(route('today-activity.finish'), finishPayload('PM', (string) $pm->id, $wwdPic))->assertForbidden();
