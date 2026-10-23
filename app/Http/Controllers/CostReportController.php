@@ -89,21 +89,23 @@ class CostReportController extends Controller
         });
         $maxMonthlyCost = (float) ($monthlyTrend->max('cost') ?: 0);
 
-        // --- Detail table ---
-        $usages = (clone $query)
-            ->select([
-                'pm_spareparts.id as id',
-                'pm_schedules.actual_date as actual_date',
-                'pm_schedules.area as area',
-                'pm_schedules.machine_number as machine_number',
-                'pm_schedules.machine_type as machine_type',
-                'pm_schedules.order_number as order_number',
-                'pm_spareparts.qty as qty',
-                'spareparts.price as price',
-            ])
-            ->orderByDesc('pm_schedules.actual_date')
-            ->paginate(20)
-            ->withQueryString();
+        // --- Cost by Machine Type — all machine types in scope, highest
+        // total cost first. ---
+        $costByMachineType = (clone $query)
+            ->select('pm_schedules.machine_type as machine_type')
+            ->selectRaw('SUM(pm_spareparts.qty * spareparts.price) as cost')
+            ->groupBy('pm_schedules.machine_type')
+            ->orderByDesc('cost')
+            ->get();
+
+        // --- Top 10 Machines by cost ---
+        $topMachines = (clone $query)
+            ->select('pm_schedules.machine_number as machine_number')
+            ->selectRaw('SUM(pm_spareparts.qty * spareparts.price) as cost')
+            ->groupBy('pm_schedules.machine_number')
+            ->orderByDesc('cost')
+            ->limit(10)
+            ->get();
 
         // --- Year options ---
         $yearScope = $this->applyScopeTo(PMSchedule::query(), $user, $area);
@@ -128,7 +130,8 @@ class CostReportController extends Controller
             'summary' => $summary,
             'monthlyTrend' => $monthlyTrend,
             'maxMonthlyCost' => $maxMonthlyCost,
-            'usages' => $usages,
+            'costByMachineType' => $costByMachineType,
+            'topMachines' => $topMachines,
             'years' => $years,
             'machines' => $machines,
             'machineTypes' => $machineTypes,

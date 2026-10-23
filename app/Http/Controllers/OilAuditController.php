@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DuplicateOilAuditException;
 use App\Http\Controllers\Concerns\HandlesActivityConflict;
 use App\Models\ActivityMonitorClosure;
 use App\Models\Machine;
 use App\Models\OilAudit;
 use App\Models\User;
 use App\Services\ActiveActivityResolver;
-use App\Exceptions\DuplicateOilAuditException;
 use App\Services\OilAuditCreateService;
 use App\Services\OilAuditFollowUpService;
 use Carbon\Carbon;
@@ -200,13 +200,25 @@ class OilAuditController extends Controller
             ->with('success', 'Oil Audit Action activity dimulai.');
     }
 
-    public function entry(string $machineNumber): View
+    public function entry(string $machineNumber): View|RedirectResponse
     {
         $machine = Machine::with('latestOilAudit.followUp')
             ->where('machine_number', trim($machineNumber))
             ->where('area', self::AUDIT_AREA)
             ->whereIn('machine_type', self::auditMachineTypes())
             ->firstOrFail();
+
+        // Same "one audit per machine per business date" rule as
+        // OilAuditCreateService::create(), checked here too so the warning
+        // shows the moment a machine is scanned/typed — before the PIC
+        // even reaches the condition-selection step — instead of only
+        // after they pick a condition and submit. latestOilAudit is
+        // already eager-loaded above, so this costs no extra query.
+        if ($machine->latestOilAudit && $machine->latestOilAudit->audit_date === now()->toDateString()) {
+            return redirect()
+                ->route('oil-audits.scan')
+                ->with('error', DuplicateOilAuditException::forMachine($machine->machine_number)->getMessage());
+        }
 
         return view('oil-audits.entry', compact('machine'));
     }

@@ -58,7 +58,7 @@ class OilAuditCreateService
         }
 
         try {
-            return DB::transaction(function () use ($machine, $user, $condition, $auditedAt, $auditDate) {
+            $audit = DB::transaction(function () use ($machine, $user, $condition, $auditedAt, $auditDate) {
                 return OilAudit::create([
                     'machine_id' => $machine->id,
                     'machine_number' => $machine->machine_number,
@@ -74,5 +74,11 @@ class OilAuditCreateService
         } catch (UniqueConstraintViolationException) {
             throw DuplicateOilAuditException::forMachine($machine->machine_number);
         }
+
+        // Deferred until the outermost transaction (e.g. the sync endpoint's)
+        // commits; a no-op for anything other than KRITIS.
+        app(OilAuditCriticalNotifier::class)->notify($audit);
+
+        return $audit;
     }
 }

@@ -93,7 +93,7 @@
         @csrf
         <input type="hidden" name="return_page" value="{{ request('page') }}">
 
-        <div id="pm-checklist-data" data-pm-schedule-id="{{ $pmSchedule->id }}" data-pm-status="{{ $pmSchedule->status }}"></div>
+        <div id="pm-checklist-data" data-pm-schedule-id="{{ $pmSchedule->id }}" data-pm-status="{{ $pmSchedule->status }}" data-pm-checklist-baseline="{{ json_encode($checklistBaseline) }}"></div>
 
         <div class="max-h-[75vh] overflow-auto rounded-lg bg-white shadow">
 

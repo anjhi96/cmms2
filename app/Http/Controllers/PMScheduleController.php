@@ -201,7 +201,6 @@ class PMScheduleController extends Controller
             'plan_date' => $request->plan_date,
             'due_date' => $dueDate,
             'last_pm' => $lastPm,
-            'pic' => $request->pic,
 
             'status' => 'OPEN',
         ]);
@@ -354,6 +353,12 @@ class PMScheduleController extends Controller
         )->get()
             ->keyBy('machine_checklist_id');
 
+        // Server state as stored right now (before any session draft below
+        // overrides it) — the offline device sends this back as
+        // expected_state so PM_CHECKLIST_SAVE can detect checklist edits made
+        // elsewhere in the meantime.
+        $checklistBaseline = (object) PMChecklistSaveService::normalizeState($pmChecklists);
+
         // Temporary draft (Save Checklist rejected by Fill PM validation) overrides DB values per item
         foreach ((array) session('pm_checklist_draft.'.$pmSchedule->id, []) as $row) {
             if (! empty($row['machine_checklist_id'])) {
@@ -411,6 +416,7 @@ class PMScheduleController extends Controller
                 'pmSchedule',
                 'checklists',
                 'pmChecklists',
+                'checklistBaseline',
                 'nextPm',
                 'spareCost',
                 'executionDate'

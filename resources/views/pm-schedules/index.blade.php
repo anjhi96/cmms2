@@ -16,23 +16,29 @@
         </div>
 
         @if ((auth()->user()->isAdmin() || auth()->user()->isKoordinator()))
-            <form action="{{ route('pm-schedules.import') }}" method="POST" enctype="multipart/form-data"
-                class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:flex-row sm:items-center">
-                @csrf
-                <div class="flex items-center gap-2">
-                    <input type="file" id="fileInput" name="file" accept=".csv" class="hidden"
-                        onchange="updateFileName(this)">
-                    <label for="fileInput"
-                        class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-                        Choose File
-                    </label>
-                    <span id="fileName" class="max-w-[180px] truncate text-sm text-slate-500">No file chosen</span>
-                </div>
-                <button
-                    class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700">
-                    Import
-                </button>
-            </form>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <form action="{{ route('pm-schedules.import') }}" method="POST" enctype="multipart/form-data"
+                    class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:flex-row sm:items-center">
+                    @csrf
+                    <div class="flex items-center gap-2">
+                        <input type="file" id="fileInput" name="file" accept=".csv" class="hidden"
+                            onchange="updateFileName(this)">
+                        <label for="fileInput"
+                            class="cursor-pointer rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                            Choose File
+                        </label>
+                        <span id="fileName" class="max-w-[180px] truncate text-sm text-slate-500">No file chosen</span>
+                    </div>
+                    <button
+                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-700">
+                        Import
+                    </button>
+                </form>
+
+                <a href="{{ route('pm-schedules.create') }}" class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
+                    Add Schedule
+                </a>
+            </div>
         @endif
     </div>
 

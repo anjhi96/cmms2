@@ -6,6 +6,7 @@ use App\Models\MachineChecklist;
 use App\Models\PMChecklist;
 use App\Models\PMSchedule;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -124,6 +125,55 @@ class PMChecklistSaveService
         return $unfilled > 0
             ? ["Checklist ({$unfilled} item belum diisi)"]
             : [];
+    }
+
+    /**
+     * Normalized per-item checklist state, keyed by machine_checklist_id
+     * (ascending) — the shape an offline device sends back as
+     * expected_state['checklists'] and the sync-conflict resolver compares
+     * field by field. Missing fields get the same defaults save() applies,
+     * and a blank remark is null, so a device baseline and the server's
+     * stored rows compare equal when nothing really changed.
+     *
+     * @param  iterable<int|string, mixed>  $rows  PMChecklist models or item arrays
+     * @return array<int, array{clean: string, lubrication: string, replace: string, check: string, remarks: ?string}>
+     */
+    public static function normalizeState(iterable $rows): array
+    {
+        $state = [];
+
+        foreach ($rows as $row) {
+            $row = $row instanceof Model ? $row->getAttributes() : (array) $row;
+            $id = (int) ($row['machine_checklist_id'] ?? 0);
+
+            if ($id <= 0) {
+                continue;
+            }
+
+            $remarks = isset($row['remarks']) ? trim((string) $row['remarks']) : '';
+
+            $state[$id] = [
+                'clean' => ($row['clean'] ?? 'NO') === 'YES' ? 'YES' : 'NO',
+                'lubrication' => ($row['lubrication'] ?? 'NO') === 'YES' ? 'YES' : 'NO',
+                'replace' => ($row['replace'] ?? 'NO') === 'YES' ? 'YES' : 'NO',
+                'check' => ($row['check'] ?? 'NO') === 'YES' ? 'YES' : 'NO',
+                'remarks' => $remarks === '' ? null : $remarks,
+            ];
+        }
+
+        ksort($state);
+
+        return $state;
+    }
+
+    /**
+     * @return array<int, array{clean: string, lubrication: string, replace: string, check: string, remarks: ?string}>
+     */
+    public function currentState(PMSchedule $pmSchedule): array
+    {
+        return self::normalizeState(
+            PMChecklist::where('pm_schedule_id', $pmSchedule->id)->get()
+        );
     }
 
     /**

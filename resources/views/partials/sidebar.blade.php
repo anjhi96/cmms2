@@ -80,6 +80,7 @@ document.addEventListener('alpine:init', () => {
         $dashboardActive = request()->routeIs('dashboard');
         $todayActivityActive = request()->routeIs('today-activity.*');
         $pmScheduleActive = request()->routeIs('pm-schedules.*');
+        $emailNotificationActive = request()->routeIs('email-notifications.*');
         $importTemplateActive = request()->routeIs('import-templates');
         $measurementActive = request()->routeIs('machine-measurements.*');
         $checklistActive = request()->routeIs('machine-checklists.*');
@@ -439,6 +440,17 @@ document.addEventListener('alpine:init', () => {
             // droplet (mirrors the Oil Change field this master data controls)
             'icon' => '
             <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C4 11.1 3 13 3 15a7 7 0 0 0 7 7z" />',
+            'visible' =>
+            $isAdmin,
+            ],
+            [
+            'route' => route('email-notifications.edit'),
+            'label' => 'Notifikasi Email',
+            'active' => $emailNotificationActive,
+            // mail
+            'icon' => '
+            <rect width="20" height="16" x="2" y="4" rx="2" />
+            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />',
             'visible' =>
             $isAdmin,
             ],

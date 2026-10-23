@@ -7,10 +7,13 @@ import {
     PmChecklistBlockedError,
     PmChecklistValidationError,
     buildChecklistsFromForm,
+    buildResolvedOperation,
+    diffChecklists,
     processQueuedOperation,
     saveOffline,
     validateChecklistsLocally,
 } from '../pmChecklist.js';
+import { resolveConflictWithReplacement } from '../sync.js';
 import { resetTestDatabase } from './helpers.js';
 
 beforeEach(async () => {
@@ -223,5 +226,117 @@ describe('processQueuedOperation', () => {
             payload: record.payload,
             expected_state: record.expected_state,
         });
+    });
+});
+
+describe('conflict resolution (per-field merge)', () => {
+    const local = [
+        { machine_checklist_id: '1', clean: 'YES', check: 'YES', lubrication: 'NO', replace: 'NO', remarks: 'oli' },
+        { machine_checklist_id: '2', clean: 'NO', check: 'YES', lubrication: 'NO', replace: 'NO', remarks: '' },
+    ];
+    const server = {
+        status: 'IN_PROGRESS',
+        checklists: {
+            1: { clean: 'NO', check: 'YES', lubrication: 'NO', replace: 'NO', remarks: 'oli' },
+            2: { clean: 'NO', check: 'YES', lubrication: 'NO', replace: 'NO', remarks: null },
+            3: { clean: 'YES', check: 'YES', lubrication: 'NO', replace: 'NO', remarks: 'hanya server' },
+        },
+    };
+
+    it('saveOffline sends per-item expected checklists when provided', async () => {
+        const expectedChecklists = { 1: server.checklists[1] };
+        const record = await saveOffline({ pmScheduleId: 5, checklists: local, expectedStatus: 'IN_PROGRESS', expectedChecklists });
+
+        expect(record.expected_state).toEqual({ status: 'IN_PROGRESS', checklists: expectedChecklists });
+    });
+
+    it('diffChecklists returns only fields that differ (blank remark equals null)', () => {
+        expect(diffChecklists(local, server.checklists)).toEqual([
+            { machine_checklist_id: '1', field: 'clean', local: 'YES', server: 'NO' },
+        ]);
+    });
+
+    it('buildResolvedOperation applies choices, keeps server-only items, and uses server state as expected_state', () => {
+        const diffs = diffChecklists(local, server.checklists);
+
+        const pickServer = buildResolvedOperation({ localChecklists: local, server, diffs, choices: { '1:clean': 'server' } });
+        const pickLocal = buildResolvedOperation({ localChecklists: local, server, diffs, choices: { '1:clean': 'local' } });
+
+        expect(pickServer.payload.checklists.find((i) => i.machine_checklist_id === 1).clean).toBe('NO');
+        expect(pickLocal.payload.checklists.find((i) => i.machine_checklist_id === 1).clean).toBe('YES');
+        expect(pickLocal.payload.checklists.map((i) => i.machine_checklist_id)).toEqual([1, 2, 3]);
+        expect(pickLocal.payload.checklists.find((i) => i.machine_checklist_id === 3).remarks).toBe('hanya server');
+        expect(pickLocal.expectedState.status).toBe('IN_PROGRESS');
+        expect(pickLocal.expectedState.checklists['3'].remarks).toBe('hanya server');
+    });
+
+    it('buildResolvedOperation refuses to build while a difference is undecided', () => {
+        const diffs = diffChecklists(local, server.checklists);
+
+        expect(() => buildResolvedOperation({ localChecklists: local, server, diffs, choices: {} })).toThrow();
+    });
+});
+
+describe('resolveConflictWithReplacement', () => {
+    const checklists = [{ machine_checklist_id: '1', clean: 'YES', check: 'NO', lubrication: 'NO', replace: 'NO', remarks: '' }];
+    const replacement = { payload: { pm_schedule_id: 42, checklists }, expectedState: { status: 'IN_PROGRESS', checklists: {} } };
+
+    async function makeConflict() {
+        const record = await saveOffline({ pmScheduleId: 42, checklists, expectedStatus: 'IN_PROGRESS' });
+
+        await Queue.markConflict(record.operation_uuid, { status: 'conflict' });
+
+        return record.operation_uuid;
+    }
+
+    it('keeps the old conflict when the resend fails, and drops the temporary replacement', async () => {
+        const oldUuid = await makeConflict();
+
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ status: 'conflict', message: 'Berubah lagi' }) }));
+
+        const result = await resolveConflictWithReplacement(oldUuid, replacement, processQueuedOperation);
+
+        expect(result.ok).toBe(false);
+        expect(result.error).toBe('Berubah lagi');
+        expect((await Queue.getByUuid(oldUuid)).status).toBe(Queue.QueueStatus.CONFLICT);
+        expect(await Queue.listAll()).toHaveLength(1);
+    });
+
+    it('keeps the old conflict when the network throws', async () => {
+        const oldUuid = await makeConflict();
+
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+
+        const result = await resolveConflictWithReplacement(oldUuid, replacement, processQueuedOperation);
+
+        expect(result.ok).toBe(false);
+        expect(await Queue.getByUuid(oldUuid)).toBeDefined();
+        expect(await Queue.listAll()).toHaveLength(1);
+    });
+
+    it('removes the old conflict only after the replacement is processed, sending a new uuid', async () => {
+        const oldUuid = await makeConflict();
+        const fetchSpy = vi.fn().mockResolvedValue({ json: async () => ({ status: 'processed' }) });
+
+        vi.stubGlobal('fetch', fetchSpy);
+
+        const result = await resolveConflictWithReplacement(oldUuid, replacement, processQueuedOperation);
+        const sent = JSON.parse(fetchSpy.mock.calls[0][1].body);
+
+        expect(result.ok).toBe(true);
+        expect(sent.operation_uuid).not.toBe(oldUuid);
+        expect(sent.expected_state).toEqual(replacement.expectedState);
+        expect(await Queue.getByUuid(oldUuid)).toBeUndefined();
+        expect(await getLocalPmChecklistOverlay(42)).toBeNull();
+        expect(await Queue.listByStatus(Queue.QueueStatus.CONFLICT)).toHaveLength(0);
+    });
+
+    it('treats already_processed as success too', async () => {
+        const oldUuid = await makeConflict();
+
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: async () => ({ status: 'already_processed' }) }));
+
+        expect((await resolveConflictWithReplacement(oldUuid, replacement, processQueuedOperation)).ok).toBe(true);
+        expect(await Queue.getByUuid(oldUuid)).toBeUndefined();
     });
 });

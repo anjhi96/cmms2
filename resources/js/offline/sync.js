@@ -19,6 +19,7 @@
 
 import { csrfToken } from './csrf.js';
 import * as SyncQueue from './queue.js';
+import { currentUserId } from './scope.js';
 
 /**
  * @param {string} operationUuid
@@ -93,4 +94,57 @@ export async function sendQueuedOperation(operationUuid) {
     }
 
     return { entry, body };
+}
+
+/**
+ * Resolves a queued conflict by sending a REPLACEMENT operation (new
+ * operation_uuid) and only then removing the old one. The old conflict
+ * entry is the user's only copy of their local changes, so it is deleted
+ * strictly after the server answers processed/already_processed; on any
+ * other outcome (or a network error) it is left untouched. The temporary
+ * replacement entry is dropped again on failure, so a failed attempt
+ * never leaves a second issue behind — the user just retries from the
+ * still-present conflict.
+ *
+ * @param {string} conflictUuid  the existing conflict operation
+ * @param {{ payload: object, expectedState: object }} replacement
+ * @param {(operationUuid: string) => Promise<object>} [send]  per-type
+ *   processor (does overlay/draft cleanup too); defaults to the bare sender.
+ * @returns {Promise<{ ok: boolean, body: object|null, error: string|null }>}
+ */
+export async function resolveConflictWithReplacement(conflictUuid, { payload, expectedState }, send) {
+    const conflict = await SyncQueue.getByUuid(conflictUuid);
+
+    if (!conflict || conflict.status !== SyncQueue.QueueStatus.CONFLICT) {
+        throw new Error(`Operasi ${conflictUuid} bukan konflik yang bisa diselesaikan.`);
+    }
+
+    const sender = send ?? (async (uuid) => (await sendQueuedOperation(uuid)).body);
+    const replacement = await SyncQueue.enqueue({
+        transactionType: conflict.transaction_type,
+        payload,
+        expectedState,
+        userId: conflict.user_id ?? currentUserId(),
+    });
+
+    let body = null;
+    let error = null;
+
+    try {
+        body = await sender(replacement.operation_uuid);
+
+        if (body?.status === 'processed' || body?.status === 'already_processed') {
+            await SyncQueue.remove(conflictUuid);
+
+            return { ok: true, body, error: null };
+        }
+
+        error = body?.message ?? body?.status ?? 'Unknown sync error';
+    } catch (e) {
+        error = String(e?.message ?? e);
+    }
+
+    await SyncQueue.remove(replacement.operation_uuid);
+
+    return { ok: false, body, error };
 }

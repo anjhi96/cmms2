@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
-use App\Models\User;
+use App\Services\QueueWorkerStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Queue\Events\Looping;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -41,6 +43,17 @@ class AppServiceProvider extends ServiceProvider
             Paginator::currentPathResolver(fn () => url()->current());
         }
 
+        // Heartbeat for the Notifikasi Email page: queue:work fires Looping
+        // on every poll, so a fresh timestamp proves a worker is alive.
+        // Throttled per process to one cache write every 30s.
+        Event::listen(Looping::class, function () {
+            static $last = 0;
+
+            if (time() - $last >= 30) {
+                $last = time();
+                Cache::put(QueueWorkerStatus::KEY, time(), now()->addMinutes(10));
+            }
+        });
     }
 
     /**

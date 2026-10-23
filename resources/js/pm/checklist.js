@@ -104,6 +104,14 @@ function initPmChecklistForm() {
 
     const pmScheduleId = Number(pmData.dataset.pmScheduleId);
     const expectedStatus = pmData.dataset.pmStatus;
+    let expectedChecklists = {};
+
+    try {
+        expectedChecklists = JSON.parse(pmData.dataset.pmChecklistBaseline || '{}');
+    } catch {
+        expectedChecklists = {};
+    }
+
     const userId = currentUserId();
 
     function showBanner(html) {
@@ -198,7 +206,7 @@ function initPmChecklistForm() {
 
             const checklists = PmChecklist.buildChecklistsFromForm(form);
 
-            await PmChecklist.saveOffline({ pmScheduleId, checklists, expectedStatus });
+            await PmChecklist.saveOffline({ pmScheduleId, checklists, expectedStatus, expectedChecklists });
             hideBanner();
             showBanner(
                 'Checklist berhasil <strong>disimpan secara offline</strong> dan akan disinkronkan ke server saat '

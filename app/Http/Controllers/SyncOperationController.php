@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\DuplicateOilAuditException;
 use App\Exceptions\Sync\SyncConflictException;
 use App\Models\Machine;
+use App\Models\MachineChecklist;
 use App\Models\OilAudit;
 use App\Models\OilAuditFollowUp;
 use App\Models\PMSchedule;
@@ -465,9 +466,26 @@ class SyncOperationController extends Controller
             throw new AuthorizationException('Anda tidak memiliki akses ke PM Schedule ini.');
         }
 
-        $this->assertNoStateConflict($expectedState, ['status' => $pmSchedule->status]);
-
         $checklistService = app(PMChecklistSaveService::class);
+
+        // `checklists` (optional) is the per-item state the device last saw
+        // — compared only when sent, so older queued operations carrying
+        // just `status` behave exactly as before. Both sides go through
+        // normalizeState() so key order / blank-vs-null remarks never
+        // cause a false conflict.
+        if (array_key_exists('checklists', $expectedState)) {
+            $expectedState['checklists'] = PMChecklistSaveService::normalizeState(
+                collect((array) $expectedState['checklists'])
+                    ->map(fn ($item, $id) => is_array($item) ? $item + ['machine_checklist_id' => $id] : null)
+                    ->filter()
+            );
+        }
+
+        $this->assertNoStateConflict($expectedState, [
+            'status' => $pmSchedule->status,
+            'checklists' => $checklistService->currentState($pmSchedule),
+        ]);
+
         $checklists = (array) ($payload['checklists'] ?? []);
         $errors = array_merge(
             $checklistService->completionErrors($pmSchedule),
@@ -483,6 +501,31 @@ class SyncOperationController extends Controller
         $checklistService->save($pmSchedule, $checklists);
 
         return $pmSchedule;
+    }
+
+    /**
+     * Read-only: the PM's current status plus its per-item checklist state,
+     * for the Sync Status panel's conflict resolver. Same access rule as
+     * the checklist page / PM_CHECKLIST_SAVE.
+     */
+    public function pmChecklistState(Request $request, PMSchedule $pmSchedule): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! in_array($user->role, self::ALLOWED_ROLES[self::TYPE_PM_CHECKLIST_SAVE], true)
+            || ! $pmSchedule->isAccessibleBy($user)) {
+            return response()->json(['success' => false, 'message' => 'Anda tidak memiliki akses ke PM Schedule ini.'], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'pm_schedule_id' => $pmSchedule->id,
+            'status' => $pmSchedule->status,
+            'checklists' => (object) app(PMChecklistSaveService::class)->currentState($pmSchedule),
+            // Display names only, so the resolver can show a readable item.
+            'labels' => (object) MachineChecklist::where('machine_type', $pmSchedule->machine_type)
+                ->pluck('checklist_item', 'id')->all(),
+        ]);
     }
 
     /**

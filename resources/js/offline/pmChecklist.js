@@ -132,9 +132,11 @@ async function findBlockingLocalOperation(userId, pmScheduleId) {
  * PmChecklistBlockedError if this PIC already has a different
  * PM_CHECKLIST_SAVE pending/syncing locally. Returns the queue record.
  *
- * @param {{ pmScheduleId: number, checklists: object[], expectedStatus: string }} params
+ * @param {{ pmScheduleId: number, checklists: object[], expectedStatus: string, expectedChecklists?: object }} params
+ *   expectedChecklists: the per-item server state the page was rendered
+ *   with (keyed by machine_checklist_id) — omitted => only status is checked.
  */
-export async function saveOffline({ pmScheduleId, checklists, expectedStatus }) {
+export async function saveOffline({ pmScheduleId, checklists, expectedStatus, expectedChecklists }) {
     validateChecklistsLocally(checklists);
 
     const userId = currentUserId();
@@ -152,10 +154,14 @@ export async function saveOffline({ pmScheduleId, checklists, expectedStatus }) 
         operationUuid,
         transactionType: TRANSACTION_TYPE,
         payload: { pm_schedule_id: pmScheduleId, checklists },
-        // Minimal expected_state (Task 6 section 12) — mirrors exactly what
-        // SyncOperationController::processPmChecklistSave() actually
-        // compares (the PM's current status), never just updated_at.
-        expectedState: { status: expectedStatus },
+        // Mirrors exactly what SyncOperationController::
+        // processPmChecklistSave() compares: the PM's status and, when
+        // known, each item's clean/lubrication/replace/check/remarks as the
+        // page last saw them — so a conflict means the checklist itself
+        // changed, not just something else on the PM.
+        expectedState: expectedChecklists
+            ? { status: expectedStatus, checklists: expectedChecklists }
+            : { status: expectedStatus },
         userId,
     });
 
@@ -206,4 +212,100 @@ export async function processQueuedOperation(operationUuid) {
     }
 
     return body;
+}
+
+export const CHECKLIST_FIELDS = ['clean', 'lubrication', 'replace', 'check', 'remarks'];
+
+/** Same normalization as PMChecklistSaveService::normalizeState(), per item. */
+function normalizeItem(item = {}) {
+    const yes = (value) => (value === 'YES' ? 'YES' : 'NO');
+    const remarks = String(item.remarks ?? '').trim();
+
+    return {
+        clean: yes(item.clean),
+        lubrication: yes(item.lubrication),
+        replace: yes(item.replace),
+        check: yes(item.check),
+        remarks: remarks === '' ? null : remarks,
+    };
+}
+
+export function normalizeChecklistState(items) {
+    const state = {};
+
+    (Array.isArray(items) ? items : []).forEach((item) => {
+        if (item?.machine_checklist_id !== undefined && item.machine_checklist_id !== '') {
+            state[String(item.machine_checklist_id)] = normalizeItem(item);
+        }
+    });
+
+    return state;
+}
+
+/**
+ * Field-level diff between a conflicting local PM_CHECKLIST_SAVE payload
+ * and the latest server state. Only fields whose values differ are
+ * returned — identical fields need no decision. An item the server has no
+ * row for is compared against save()'s defaults (NO / null).
+ *
+ * @param {object[]} localChecklists  the queued payload.checklists
+ * @param {object} serverChecklists   server state keyed by machine_checklist_id
+ * @returns {{ machine_checklist_id: string, field: string, local: *, server: * }[]}
+ */
+export function diffChecklists(localChecklists, serverChecklists) {
+    const local = normalizeChecklistState(localChecklists);
+    const diffs = [];
+
+    Object.entries(local).forEach(([id, localItem]) => {
+        const serverItem = normalizeItem(serverChecklists?.[id]);
+
+        CHECKLIST_FIELDS.forEach((field) => {
+            if (localItem[field] !== serverItem[field]) {
+                diffs.push({ machine_checklist_id: id, field, local: localItem[field], server: serverItem[field] });
+            }
+        });
+    });
+
+    return diffs;
+}
+
+/**
+ * Builds the replacement PM_CHECKLIST_SAVE payload/expected_state.
+ * `choices` maps `${machine_checklist_id}:${field}` -> 'local' | 'server'
+ * for every diff; every diff must be decided. Items only the server has
+ * are carried over untouched — PMChecklistSaveService::save() deletes and
+ * recreates all rows from the payload, so omitting them would lose data.
+ *
+ * @param {{ localChecklists: object[], server: { status: string, checklists: object }, diffs: object[], choices: object }} params
+ */
+export function buildResolvedOperation({ localChecklists, server, diffs, choices }) {
+    const undecided = diffs.filter((diff) => !['local', 'server'].includes(choices[`${diff.machine_checklist_id}:${diff.field}`]));
+
+    if (undecided.length > 0) {
+        throw new Error('Semua perbedaan harus dipilih sebelum dikirim.');
+    }
+
+    const local = normalizeChecklistState(localChecklists);
+    const serverState = normalizeChecklistState(
+        Object.entries(server.checklists ?? {}).map(([id, item]) => ({ ...item, machine_checklist_id: id }))
+    );
+    const ids = [...new Set([...Object.keys(local), ...Object.keys(serverState)])];
+
+    const checklists = ids.map((id) => {
+        const item = { machine_checklist_id: /^\d+$/.test(id) ? Number(id) : id };
+
+        CHECKLIST_FIELDS.forEach((field) => {
+            const decision = choices[`${id}:${field}`];
+            const source = decision === 'local' || (decision === undefined && local[id]) ? local[id] : serverState[id];
+
+            item[field] = source?.[field] ?? normalizeItem()[field];
+        });
+
+        return item;
+    });
+
+    return {
+        payload: { checklists },
+        expectedState: { status: server.status, checklists: serverState },
+    };
 }

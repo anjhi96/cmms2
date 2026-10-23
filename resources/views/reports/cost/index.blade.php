@@ -56,7 +56,7 @@
     </form>
 
     {{-- ============ Summary ============ --}}
-    <div class="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="text-xs uppercase tracking-wide text-slate-400">Total Maintenance Cost</div>
             <div class="mt-1 text-xl font-bold text-slate-800">USD {{ number_format($summary['total_cost'], 2) }}</div>
@@ -75,16 +75,18 @@
                 <div class="mt-1 text-lg font-bold text-slate-400">-</div>
             @endif
         </div>
-        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="text-xs uppercase tracking-wide text-slate-400">Cost per Area</div>
-            <div class="mt-1 space-y-0.5 text-sm">
-                @foreach ($summary['cost_by_area'] as $areaName => $cost)
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500">{{ $areaName }}</span>
-                        <span class="font-semibold text-slate-800">USD {{ number_format($cost, 2) }}</span>
-                    </div>
-                @endforeach
-            </div>
+    </div>
+
+    {{-- ============ Cost per Area ============ --}}
+    <div class="mb-6">
+        <div class="mb-2 text-xs uppercase tracking-wide text-slate-400">Cost per Area</div>
+        <div class="flex flex-wrap gap-3">
+            @foreach ($summary['cost_by_area'] as $areaName => $cost)
+                <div class="min-w-[9rem] flex-1 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs font-medium text-slate-500">{{ $areaName }}</div>
+                    <div class="mt-1 text-sm font-bold text-slate-800">USD {{ number_format($cost, 2) }}</div>
+                </div>
+            @endforeach
         </div>
     </div>
 
@@ -109,81 +111,61 @@
         </div>
     </div>
 
-    {{-- ============ Detail Table ============ --}}
-    @if ($usages->isEmpty())
-        <div class="rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center text-slate-500">
-            No Maintenance Cost data found.
-        </div>
-    @else
-        <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Area</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Machine</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Machine Type</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Maintenance Type</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Order Number</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Sparepart Cost</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Total Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
-                        @foreach ($usages as $row)
-                            @php $lineCost = ($row->qty ?? 0) * ($row->price ?? 0); @endphp
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-3 text-slate-600">{{ $row->actual_date ? \Carbon\Carbon::parse($row->actual_date)->format('d-m-Y') : '-' }}</td>
-                                <td class="px-4 py-3 text-slate-600">{{ $row->area }}</td>
-                                <td class="px-4 py-3 font-medium text-slate-800">{{ $row->machine_number }}</td>
-                                <td class="px-4 py-3 text-slate-600">{{ $row->machine_type }}</td>
-                                <td class="px-4 py-3 text-slate-600">PM</td>
-                                <td class="px-4 py-3 text-slate-600">{{ $row->order_number ?: '-' }}</td>
-                                <td class="px-4 py-3 text-right text-slate-600">USD {{ number_format($lineCost, 2) }}</td>
-                                <td class="px-4 py-3 text-right font-semibold text-slate-800">USD {{ number_format($lineCost, 2) }}</td>
+    {{-- ============ Cost by Machine Type / Top 10 Machines ============ --}}
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Cost by Machine Type</h2>
+            @if ($costByMachineType->isEmpty())
+                <div class="py-10 text-center text-sm text-slate-500">No Maintenance Cost data found.</div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Machine Type</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Total Cost</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {{-- ============ Mobile cards ============ --}}
-        <div class="space-y-3 md:hidden">
-            @foreach ($usages as $row)
-                @php $lineCost = ($row->qty ?? 0) * ($row->price ?? 0); @endphp
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="mb-2 flex items-start justify-between gap-2">
-                        <div>
-                            <div class="text-sm font-semibold text-slate-800">{{ $row->machine_number }}</div>
-                            <div class="text-xs text-slate-500">{{ $row->machine_type }} • {{ $row->area }}</div>
-                        </div>
-                        <div class="shrink-0 text-xs text-slate-500">PM</div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-y-2 border-t border-slate-100 pt-3 text-xs">
-                        <div>
-                            <div class="text-slate-400">Date</div>
-                            <div class="font-medium text-slate-700">{{ $row->actual_date ? \Carbon\Carbon::parse($row->actual_date)->format('d-m-Y') : '-' }}</div>
-                        </div>
-                        <div>
-                            <div class="text-slate-400">Order Number</div>
-                            <div class="font-medium text-slate-700">{{ $row->order_number ?: '-' }}</div>
-                        </div>
-                    </div>
-
-                    <div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                        <span class="text-xs text-slate-400">Total Cost</span>
-                        <span class="font-semibold text-slate-800">USD {{ number_format($lineCost, 2) }}</span>
-                    </div>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            @foreach ($costByMachineType as $row)
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-4 py-3 font-medium text-slate-800">{{ $row->machine_type }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold text-slate-800">USD {{ number_format($row->cost, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
-            @endforeach
+            @endif
         </div>
 
-        <div class="mt-4">
-            {{ $usages->links() }}
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <h2 class="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Top 10 Machines by Cost</h2>
+            @if ($topMachines->isEmpty())
+                <div class="py-10 text-center text-sm text-slate-500">No Maintenance Cost data found.</div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">#</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Machine</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Total Cost</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            @foreach ($topMachines as $row)
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-4 py-3 text-slate-500">{{ $loop->iteration }}</td>
+                                    <td class="px-4 py-3 font-medium text-slate-800">{{ $row->machine_number }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold text-slate-800">USD {{ number_format($row->cost, 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </div>
-    @endif
+    </div>
 
 @endsection

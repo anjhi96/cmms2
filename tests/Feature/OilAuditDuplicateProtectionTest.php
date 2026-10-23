@@ -142,6 +142,25 @@ test('online store: duplicate audit is refused with a clear message, no second r
     expect(OilAudit::count())->toBe(1);
 });
 
+test('entry page redirects straight back with the warning for an already-audited machine, before condition selection', function () {
+    $machine = dupMachine('3001');
+    app(OilAuditCreateService::class)->create($machine, dupPic('Budi'), 'OKE');
+
+    $response = $this->actingAs(dupPic('Sari'))->get(route('oil-audits.entry', $machine->machine_number));
+
+    $response->assertRedirect(route('oil-audits.scan'))
+        ->assertSessionHas('error', fn ($m) => str_contains($m, 'Mesin 3001 sudah memiliki audit oli untuk hari ini'));
+    expect(OilAudit::count())->toBe(1);
+});
+
+test('entry page opens normally for a machine not yet audited today', function () {
+    $machine = dupMachine('3001');
+
+    $this->actingAs(dupPic())->get(route('oil-audits.entry', $machine->machine_number))
+        ->assertOk()
+        ->assertSee('Bagaimana kondisi oli mesin?');
+});
+
 test('sync: duplicate from a second device returns duplicate_audit 409 and stores nothing extra', function () {
     $machine = dupMachine('3001');
     dupSync(dupPic('Device1'), $machine)->assertOk()->assertJson(['status' => 'processed']);

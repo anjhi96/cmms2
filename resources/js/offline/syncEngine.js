@@ -39,6 +39,10 @@ const PROCESSORS = {
     [OilAuditFollowUp.TRANSACTION_TYPE]: OilAuditFollowUp.processQueuedOperation,
 };
 
+export function processorFor(transactionType) {
+    return PROCESSORS[transactionType];
+}
+
 export const TRANSACTION_LABELS = {
     [PmStart.TRANSACTION_TYPE]: 'PM Start',
     [PmSave.TRANSACTION_TYPE]: 'PM Save',

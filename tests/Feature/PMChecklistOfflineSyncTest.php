@@ -258,3 +258,45 @@ test('PM_CHECKLIST_SAVE via sync still reports validation_failed when Fill PM da
     $response->assertStatus(422)->assertJson(['success' => false, 'status' => 'validation_failed']);
     expect(PMChecklist::where('pm_schedule_id', $pm->id)->count())->toBe(0);
 });
+
+test('PM_CHECKLIST_SAVE via sync is rejected as a conflict when a checklist item changed on the server, and accepted with the refreshed expected_state', function () {
+    $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
+    $machine = checklistMachine();
+    $pm = checklistSchedule($machine, ['pic' => 'Budi', 'status' => 'IN_PROGRESS', 'actual_date' => now()->toDateString()]);
+    makeChecklistEligible($pm);
+    $item = MachineChecklist::create(['machine_type' => $machine->machine_type, 'section' => 'General', 'checklist_item' => 'Check Oli', 'maintenance_type' => 'check']);
+    PMChecklist::create(['pm_schedule_id' => $pm->id, 'machine_checklist_id' => $item->id, 'check' => 'YES', 'clean' => 'NO', 'lubrication' => 'NO', 'replace' => 'NO', 'remarks' => null]);
+
+    $rows = [['machine_checklist_id' => $item->id, 'clean' => 'NO', 'check' => 'YES', 'lubrication' => 'NO', 'replace' => 'NO', 'remarks' => 'dari device']];
+    // Device baseline: remarks blank ('' must equal the stored null).
+    $baseline = [(string) $item->id => ['clean' => 'NO', 'check' => 'YES', 'lubrication' => 'NO', 'replace' => 'NO', 'remarks' => '']];
+    $withState = fn (string $uuid, array $state) => array_replace_recursive(
+        checklistPayload($pm->id, $uuid, $rows),
+        ['expected_state' => ['checklists' => $state]]
+    );
+
+    // Someone else edits the item on the server after the device's baseline.
+    PMChecklist::where('pm_schedule_id', $pm->id)->update(['remarks' => 'server edit']);
+
+    $stale = test()->actingAs($admin)->postJson(route('api.sync'), $withState((string) Str::uuid(), $baseline));
+    $stale->assertStatus(409)->assertJson(['status' => 'conflict']);
+
+    // Resolver flow: fetch the latest state, resend with a NEW uuid.
+    $state = test()->actingAs($admin)->getJson(route('api.sync.pm-checklist-state', $pm))
+        ->assertOk()->assertJsonPath('status', 'IN_PROGRESS')->json();
+
+    expect($state['checklists'][(string) $item->id]['remarks'])->toBe('server edit')
+        ->and($state['labels'][(string) $item->id])->toBe('Check Oli');
+
+    $resolved = test()->actingAs($admin)->postJson(route('api.sync'), $withState((string) Str::uuid(), $state['checklists']));
+    $resolved->assertOk()->assertJson(['status' => 'processed']);
+
+    expect(PMChecklist::where('pm_schedule_id', $pm->id)->value('remarks'))->toBe('dari device');
+});
+
+test('the checklist state endpoint refuses a PIC who does not own the PM Schedule', function () {
+    $pic = User::factory()->create(['role' => User::ROLE_PIC, 'name' => 'Andi']);
+    $pm = checklistSchedule(checklistMachine(), ['pic' => 'Budi']);
+
+    test()->actingAs($pic)->getJson(route('api.sync.pm-checklist-state', $pm))->assertForbidden();
+});

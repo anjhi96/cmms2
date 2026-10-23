@@ -4,6 +4,7 @@ use App\Http\Controllers\AreaController;
 use App\Http\Controllers\CostReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardGuestController;
+use App\Http\Controllers\EmailNotificationSettingController;
 use App\Http\Controllers\GreasingController;
 use App\Http\Controllers\GreasingReportController;
 use App\Http\Controllers\GroupController;
@@ -88,6 +89,8 @@ Route::middleware('auth')->group(function () {
     // Purely additive: existing pm-schedules.* / oil-audits.* routes below
     // are untouched and remain the only way to use those features online.
     Route::post('/api/sync', [SyncOperationController::class, 'handle'])->name('api.sync');
+    // Read-only latest checklist state, used by the Sync Status conflict resolver.
+    Route::get('/api/sync/pm-schedules/{pmSchedule}/checklist-state', [SyncOperationController::class, 'pmChecklistState'])->name('api.sync.pm-checklist-state');
 
     // Group detail (which machines belong to a group) is read-only and
     // open to every authenticated role, unlike the rest of groups.* which
@@ -110,6 +113,10 @@ Route::middleware([
             'update',
             'destroy',
         ]);
+
+    Route::get('/settings/email-notifications', [EmailNotificationSettingController::class, 'edit'])->name('email-notifications.edit');
+    Route::put('/settings/email-notifications', [EmailNotificationSettingController::class, 'update'])->name('email-notifications.update');
+    Route::post('/settings/email-notifications/test', [EmailNotificationSettingController::class, 'test'])->name('email-notifications.test');
 
     Route::resource('areas', AreaController::class)
         ->only([
