@@ -47,6 +47,7 @@
             str_contains($routeName, 'areas') => 'Area Management',
             str_contains($routeName, 'machine-maintenance-requirements') => 'Oil Change Requirements',
             str_contains($routeName, 'email-notifications') => 'Email Notifications',
+            str_contains($routeName, 'backup') => 'Backup & Data Protection',
             str_contains($routeName, 'reports') => 'Reports',
             str_contains($routeName, 'import') => 'Import',
             str_contains($routeName, 'today-activity') => "Today's Activity",

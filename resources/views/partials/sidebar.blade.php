@@ -81,6 +81,7 @@ document.addEventListener('alpine:init', () => {
         $todayActivityActive = request()->routeIs('today-activity.*');
         $pmScheduleActive = request()->routeIs('pm-schedules.*');
         $emailNotificationActive = request()->routeIs('email-notifications.*');
+        $backupActive = request()->routeIs('backup.*');
         $importTemplateActive = request()->routeIs('import-templates');
         $measurementActive = request()->routeIs('machine-measurements.*');
         $checklistActive = request()->routeIs('machine-checklists.*');
@@ -451,6 +452,18 @@ document.addEventListener('alpine:init', () => {
             'icon' => '
             <rect width="20" height="16" x="2" y="4" rx="2" />
             <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />',
+            'visible' =>
+            $isAdmin,
+            ],
+            [
+            'route' => route('backup.index'),
+            'label' => 'Backup & Data Protection',
+            'active' => $backupActive,
+            // database
+            'icon' => '
+            <ellipse cx="12" cy="5" rx="9" ry="3" />
+            <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+            <path d="M3 12A9 3 0 0 0 21 12" />',
             'visible' =>
             $isAdmin,
             ],

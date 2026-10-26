@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AreaController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CostReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardGuestController;
@@ -117,6 +118,13 @@ Route::middleware([
     Route::get('/settings/email-notifications', [EmailNotificationSettingController::class, 'edit'])->name('email-notifications.edit');
     Route::put('/settings/email-notifications', [EmailNotificationSettingController::class, 'update'])->name('email-notifications.update');
     Route::post('/settings/email-notifications/test', [EmailNotificationSettingController::class, 'test'])->name('email-notifications.test');
+
+    // Backup & Data Protection (ADMIN only). Files are kept on the private disk
+    // and only streamed by the download route; they are never under public/.
+    Route::get('/backup', [BackupController::class, 'index'])->name('backup.index');
+    Route::post('/backup/database', [BackupController::class, 'storeDatabase'])->name('backup.database.store');
+    Route::post('/backup/source', [BackupController::class, 'storeSource'])->name('backup.source.store');
+    Route::get('/backup/{backupRun}/download', [BackupController::class, 'download'])->name('backup.download');
 
     Route::resource('areas', AreaController::class)
         ->only([
