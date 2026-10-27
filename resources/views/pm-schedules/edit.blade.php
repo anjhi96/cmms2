@@ -460,6 +460,13 @@
                 Sparepart Usage
             </h2>
 
+            @if (! empty($mandatoryPrefilled))
+                <p class="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                    Mandatory spareparts for {{ $pmSchedule->machine_type }} are pre-filled below. They are only
+                    recorded as usage when you save this PM — adjust the quantity or remove a row if it was not used.
+                </p>
+            @endif
+
             <div id="sparepart-wrapper">
 
                 @foreach ($pmSpareparts as $i => $oldSpare)

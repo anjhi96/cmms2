@@ -578,9 +578,12 @@ class OilAuditController extends Controller
         $validated = $this->validateFollowUp($request);
         $user = $request->user();
 
+        $alsoClosed = $oilAudit->olderOpenRepeats()->count();
+
         app(OilAuditFollowUpService::class)->store($oilAudit, $validated, $user);
 
-        return back()->with('success', 'Tindak lanjut berhasil disimpan dan tercatat pada riwayat mesin.');
+        return back()->with('success', 'Tindak lanjut berhasil disimpan dan tercatat pada riwayat mesin.'
+            .($alsoClosed > 0 ? " {$alsoClosed} temuan lama yang sama pada mesin ini ikut ditutup." : ''));
     }
 
     public function updateFollowUp(Request $request, OilAudit $oilAudit): RedirectResponse

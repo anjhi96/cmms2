@@ -10,6 +10,7 @@ use App\Models\MachineChecklist;
 use App\Models\MachineMeasurement;
 use App\Models\MachineProblem;
 use App\Models\MachineProblemFinding;
+use App\Models\MandatorySparepart;
 use App\Models\PMChecklist;
 use App\Models\PMMeasurement;
 use App\Models\PMProblem;
@@ -268,6 +269,25 @@ class PMScheduleController extends Controller
             )
             ->get();
 
+        // Sparepart Planning: suggest the mandatory spareparts of this
+        // machine type as UNSAVED rows. Nothing is written here — they only
+        // become pm_spareparts when the PIC saves, via the normal save path.
+        $mandatoryPrefilled = false;
+
+        if ($pmSpareparts->isEmpty() && ! in_array($pmSchedule->status, PMSchedule::DONE_STATUSES, true)) {
+            $pmSpareparts = MandatorySparepart::with('sparepart')
+                ->where('machine_type', $pmSchedule->machine_type)
+                ->get()
+                ->sortBy(fn ($m) => $m->sparepart->material_number, SORT_NATURAL)
+                ->map(fn ($m) => (new PMSparepart([
+                    'sparepart_id' => $m->sparepart_id,
+                    'qty' => $m->qty,
+                ]))->setRelation('sparepart', $m->sparepart))
+                ->values();
+
+            $mandatoryPrefilled = $pmSpareparts->isNotEmpty();
+        }
+
         $lastPm = PMSchedule::where('machine_number', $pmSchedule->machine_number)
             ->whereNotNull('actual_date')
             ->where('id', '!=', $pmSchedule->id)
@@ -292,6 +312,7 @@ class PMScheduleController extends Controller
             'pmMeasurements',
             'pmProblems',
             'pmSpareparts',
+            'mandatoryPrefilled',
             'lastPm',
             'pics'
         ));

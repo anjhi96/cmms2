@@ -114,6 +114,23 @@ class OilAuditFollowUpService
 
             $this->syncFollowUpProblems($followUp, $validated['problems']);
 
+            // Repeating low-priority findings (Oli Keruh / Level Glass
+            // Burem): the same follow-up closes the older open ones too,
+            // inside the same transaction. Only on first save — later edits
+            // do not rewrite the older copies.
+            foreach ($oilAudit->olderOpenRepeats()->get() as $older) {
+                $copy = OilAuditFollowUp::create([
+                    'oil_audit_id' => $older->id,
+                    'problem' => $followUp->problem,
+                    'action_taken' => $followUp->action_taken,
+                    'pic_user_id' => $followUp->pic_user_id,
+                    'pic_name' => $followUp->pic_name,
+                    'actioned_at' => $followUp->actioned_at,
+                ]);
+
+                $this->syncFollowUpProblems($copy, $validated['problems']);
+            }
+
             return $followUp;
         });
     }

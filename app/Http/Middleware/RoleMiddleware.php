@@ -17,6 +17,7 @@ class RoleMiddleware
     private const SUPERVISOR_VIEW_ROUTES = [
         'dashboard',
         'pm-schedules.pdf',
+        'sparepart-planning.export',
         // Oil Audit pages are viewable; their forms are rendered disabled.
         'oil-audits.scan',
         'oil-audits.entry',

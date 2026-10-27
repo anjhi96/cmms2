@@ -158,6 +158,34 @@ class OilAudit extends Model
         return ['HAMPIR_GARIS', 'PAS_GARIS', 'KRITIS', 'OLI_KERUH', 'GLASS_BUREM'];
     }
 
+    /**
+     * Low-priority findings that tend to repeat on the same machine: one
+     * follow-up on the newest of them also closes the older open ones.
+     */
+    public const LOW_PRIORITY_CONDITIONS = ['OLI_KERUH', 'GLASS_BUREM'];
+
+    /**
+     * Older, still-open audits of the same machine with the same
+     * low-priority condition as this one (empty for any other condition).
+     *
+     * @return Builder<OilAudit>
+     */
+    public function olderOpenRepeats(): Builder
+    {
+        $query = self::query()
+            ->where('machine_id', $this->machine_id)
+            ->where('condition', $this->condition)
+            ->where('id', '!=', $this->id)
+            ->where('audited_at', '<', $this->audited_at)
+            ->whereDoesntHave('followUp');
+
+        if (! in_array($this->condition, self::LOW_PRIORITY_CONDITIONS, true)) {
+            $query->whereRaw('1 = 0');
+        }
+
+        return $query;
+    }
+
     public function needsFollowUp(): bool
     {
         return in_array($this->condition, self::followUpConditions(), true);

@@ -377,3 +377,68 @@ test('a legacy follow-up with problems but no findings still renders', function 
     $response->assertSee('Legacy action');
     $response->assertSee('Kapstan 2');
 });
+
+// ---------------------------------------------------------------------------
+// Repeating low-priority findings close together
+// ---------------------------------------------------------------------------
+
+test('following up the newest repeating Level Glass Burem also closes the older open ones with the same fields', function () {
+    $machine = fuMachine();
+    $old = fuAudit($machine, ['condition' => 'GLASS_BUREM', 'audited_at' => now()->subDays(14), 'audit_date' => now()->subDays(14)->toDateString()]);
+    $mid = fuAudit($machine, ['condition' => 'GLASS_BUREM', 'audited_at' => now()->subDays(7), 'audit_date' => now()->subDays(7)->toDateString()]);
+    $new = fuAudit($machine, ['condition' => 'GLASS_BUREM', 'audit_date' => now()->toDateString()]);
+    $admin = User::factory()->create(roleAttributes('ADMIN'));
+
+    test()->actingAs($admin)
+        ->post(route('oil-audits.follow-up.store', $new), fuPayload([['Level Glass Burem', ['Lainnya']]], 'Bersihkan level glass.'))
+        ->assertSessionHas('success');
+
+    foreach ([$old, $mid, $new] as $audit) {
+        $fu = $audit->fresh()->followUp;
+        expect($fu)->not->toBeNull()
+            ->and($fu->action_taken)->toBe('Bersihkan level glass.')
+            ->and($fu->pic_user_id)->toBe($admin->id)
+            ->and($fu->problems()->first()->problem)->toBe('Level Glass Burem')
+            ->and($fu->problems()->first()->findings()->first()->finding)->toBe('Lainnya');
+    }
+});
+
+test('Oli Keruh repeats close together, but other conditions, other machines and newer audits are untouched', function () {
+    $machine = fuMachine();
+    $other = fuMachine();
+    $oldKeruh = fuAudit($machine, ['condition' => 'OLI_KERUH', 'audited_at' => now()->subDays(3), 'audit_date' => now()->subDays(3)->toDateString()]);
+    $oldGlass = fuAudit($machine, ['condition' => 'GLASS_BUREM', 'audited_at' => now()->subDays(4), 'audit_date' => now()->subDays(4)->toDateString()]);
+    $otherMachine = fuAudit($other, ['condition' => 'OLI_KERUH', 'audited_at' => now()->subDays(3), 'audit_date' => now()->subDays(3)->toDateString()]);
+    $target = fuAudit($machine, ['condition' => 'OLI_KERUH', 'audited_at' => now()->subDay(), 'audit_date' => now()->subDay()->toDateString()]);
+    $newer = fuAudit($machine, ['condition' => 'OLI_KERUH', 'audit_date' => now()->toDateString()]);
+    $admin = User::factory()->create(roleAttributes('ADMIN'));
+
+    test()->actingAs($admin)
+        ->post(route('oil-audits.follow-up.store', $target), fuPayload([['Oli Keruh/Hitam', ['Lainnya']]]));
+
+    expect($oldKeruh->fresh()->followUp)->not->toBeNull()
+        ->and($target->fresh()->followUp)->not->toBeNull()
+        ->and($oldGlass->fresh()->followUp)->toBeNull()
+        ->and($otherMachine->fresh()->followUp)->toBeNull()
+        ->and($newer->fresh()->followUp)->toBeNull();
+});
+
+test('non low-priority conditions do not cascade, and already-closed older audits are kept as they are', function () {
+    $machine = fuMachine();
+    $oldCritical = fuAudit($machine, ['condition' => 'PAS_GARIS', 'audited_at' => now()->subDays(2), 'audit_date' => now()->subDays(2)->toDateString()]);
+    $newCritical = fuAudit($machine, ['condition' => 'PAS_GARIS', 'audit_date' => now()->toDateString()]);
+    $admin = User::factory()->create(roleAttributes('ADMIN'));
+
+    test()->actingAs($admin)->post(route('oil-audits.follow-up.store', $newCritical), fuPayload([['Bocor Oli', ['Kapstan 1']]]));
+    expect($oldCritical->fresh()->followUp)->toBeNull();
+
+    $m2 = fuMachine();
+    $closed = fuAudit($m2, ['condition' => 'GLASS_BUREM', 'audited_at' => now()->subDays(5), 'audit_date' => now()->subDays(5)->toDateString()]);
+    seedFollowUp($closed, [['Bocor Oli', ['Kapstan 1']]]);
+    $fresh = fuAudit($m2, ['condition' => 'GLASS_BUREM', 'audit_date' => now()->toDateString()]);
+
+    test()->actingAs($admin)->post(route('oil-audits.follow-up.store', $fresh), fuPayload([['Level Glass Burem', ['Lainnya']]], 'Baru'));
+
+    expect($closed->fresh()->followUp->action_taken)->toBe('Awal')
+        ->and($closed->fresh()->followUp->problems()->first()->problem)->toBe('Bocor Oli');
+});

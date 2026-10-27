@@ -27,6 +27,7 @@ use App\Http\Controllers\ProblemReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrScannerController;
 use App\Http\Controllers\SparepartController;
+use App\Http\Controllers\SparepartPlanningController;
 use App\Http\Controllers\SparepartReportController;
 use App\Http\Controllers\SyncOperationController;
 use App\Http\Controllers\TodayActivityController;
@@ -154,6 +155,16 @@ Route::middleware([
     Route::resource('greasings', GreasingController::class)->except(['index']);
     Route::post('/greasings/import', [GreasingController::class, 'import'])->name('greasings.import');
     Route::post('/greasings/{greasing}/assign-pic', [GreasingController::class, 'assignPic'])->name('greasings.assign-pic');
+
+    // Sparepart Planning (Mandatory Sparepart + Estimasi Kebutuhan). The
+    // group is ADMIN/KOORDINATOR/SUPERVISOR (PIC excluded); SUPERVISOR is
+    // read-only via RoleMiddleware and the controller re-checks every write.
+    Route::get('/sparepart-planning', [SparepartPlanningController::class, 'index'])->name('sparepart-planning.index');
+    Route::get('/sparepart-planning/export', [SparepartPlanningController::class, 'export'])->name('sparepart-planning.export');
+    Route::post('/sparepart-planning/mandatory', [SparepartPlanningController::class, 'store'])->name('sparepart-planning.store');
+    Route::get('/sparepart-planning/mandatory/{mandatorySparepart}/edit', [SparepartPlanningController::class, 'edit'])->name('sparepart-planning.edit');
+    Route::put('/sparepart-planning/mandatory/{mandatorySparepart}', [SparepartPlanningController::class, 'update'])->name('sparepart-planning.update');
+    Route::delete('/sparepart-planning/mandatory/{mandatorySparepart}', [SparepartPlanningController::class, 'destroy'])->name('sparepart-planning.destroy');
 
     Route::resource('spareparts', SparepartController::class);
     Route::post('/spareparts/import', [SparepartController::class, 'import'])->name('spareparts.import');

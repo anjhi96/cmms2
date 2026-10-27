@@ -73,6 +73,7 @@ document.addEventListener('alpine:init', () => {
         $machineActive = request()->routeIs('machines.*');
         $groupActive = request()->routeIs('groups.*');
         $sparepartActive = request()->routeIs('spareparts.*');
+        $sparepartPlanningActive = request()->routeIs('sparepart-planning.*');
         $reportActive = request()->routeIs('reports.*') || $cameFromReportPm || $cameFromReportMachine;
         $userActive = request()->routeIs('users.*');
         $areaActive = request()->routeIs('areas.*');
@@ -113,7 +114,7 @@ document.addEventListener('alpine:init', () => {
         @endphp
         <nav class="flex-1 overflow-y-auto px-3 py-4 text-sm" x-data="{
             openGroup: '{{ $dashboardActive || $todayActivityActive || $pmScheduleActive || $oilAuditActive || $oilAuditActionActive || $greasingActive ? 'main' :
-                        ($machineActive || $groupActive || $sparepartActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive ? 'master' :
+                        ($machineActive || $groupActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive ? 'master' :
                         ($machineHistoryActive || $reportActive ? 'report' : 'system')) }}',
             openSubmenu: '{{ $reportActive ? 'reports' : '' }}'
         }">
@@ -331,6 +332,21 @@ document.addEventListener('alpine:init', () => {
             <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
             <path d="M3.3 7 12 12l8.7-5" />
             <path d="M12 22V12" />',
+            ],
+            [
+            'route' => route('sparepart-planning.index'),
+            'label' => 'Sparepart Planning',
+            'active' => $sparepartPlanningActive,
+            // clipboard-list (planning)
+            'icon' => '
+            <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+            <path d="M12 11h4" />
+            <path d="M12 16h4" />
+            <path d="M8 11h.01" />
+            <path d="M8 16h.01" />',
+            'visible' =>
+            $isAdmin || $isKoordinator || $isSupervisor,
             ],
             [
             'route' => route('machine-measurements.index'),

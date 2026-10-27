@@ -23,12 +23,24 @@
         </div>
 
         @if ($machine->latestOilAudit)
-            <div class="mb-5 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            @php
+                // Same palette as the condition buttons below, so the last
+                // result reads at a glance in the colour of its condition.
+                $lastTone = match ($machine->latestOilAudit->condition) {
+                    'OKE' => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                    'PANTAU', 'OLI_KERUH' => 'border-amber-200 bg-amber-50 text-amber-800',
+                    'HAMPIR_GARIS' => 'border-orange-200 bg-orange-50 text-orange-800',
+                    'PAS_GARIS', 'GLASS_BUREM' => 'border-rose-200 bg-rose-50 text-rose-800',
+                    'KRITIS' => 'border-red-300 bg-red-50 text-red-900',
+                    default => 'border-slate-200 bg-white text-slate-900',
+                };
+            @endphp
+            <div class="mb-5 overflow-hidden rounded-3xl border {{ $lastTone }} p-5 shadow-sm sm:p-7">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Riwayat pengecekan terakhir</p>
-                        <p class="mt-1 text-lg font-semibold text-slate-900">{{ $machine->latestOilAudit->conditionLabel() }}</p>
-                        <p class="mt-2 text-sm text-slate-600">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">Riwayat pengecekan terakhir</p>
+                        <p class="mt-1 text-lg font-semibold">{{ $machine->latestOilAudit->conditionLabel() }}</p>
+                        <p class="mt-2 text-sm opacity-80">
                             {{ $machine->latestOilAudit->audited_at->format('d M Y, H:i') }} · oleh {{ $machine->latestOilAudit->audited_by_name }}
                         </p>
                         @if ($machine->latestOilAudit->needsFollowUp() && $machine->latestOilAudit->followUp)
@@ -37,7 +49,7 @@
                             <p class="mt-3 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">Menunggu tindak lanjut</p>
                         @endif
                     </div>
-                    <div class="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">
+                    <div class="rounded-2xl bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">
                         <p class="font-semibold text-slate-900">Audit terakhir</p>
                         <p class="mt-1 text-xs">{{ $machine->latestOilAudit->machine_type }} · {{ $machine->latestOilAudit->area }}</p>
                     </div>
