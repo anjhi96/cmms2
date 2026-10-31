@@ -72,7 +72,7 @@ document.addEventListener('alpine:init', () => {
 
         $machineActive = request()->routeIs('machines.*');
         $groupActive = request()->routeIs('groups.*');
-        $sparepartActive = request()->routeIs('spareparts.*');
+        $sparepartActive = request()->routeIs('spareparts.*', 'sparepart-injection.*');
         $sparepartPlanningActive = request()->routeIs('sparepart-planning.*');
         $reportActive = request()->routeIs('reports.*') || $cameFromReportPm || $cameFromReportMachine;
         $userActive = request()->routeIs('users.*');

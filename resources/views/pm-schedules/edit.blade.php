@@ -475,7 +475,8 @@
 
                         <select name="spareparts[{{ $i }}][sparepart_id]"
                             class="sparepart-select border p-2 w-2/3 rounded-xl max-sm:w-full"
-                            placeholder="Select Sparepart" data-selected="{{ $oldSpare->sparepart_id }}">
+                            placeholder="Select Sparepart" data-selected="{{ $oldSpare->sparepart_id }}"
+                            @disabled($oldSpare->isFromWarehouse())>
                             <option value="{{ $oldSpare->sparepart_id }}">
                                 {{ $oldSpare->sparepart->material_number }}
                                 -
@@ -483,13 +484,24 @@
                             </option>
                         </select>
 
-                        <input type="number" name="spareparts[{{ $i }}][qty]" value="{{ $oldSpare->qty }}"
-                            class="border p-2 w-1/3 rounded-xl max-sm:w-full">
+                        @if ($oldSpare->isFromWarehouse())
+                            {{-- Injected from a warehouse issue: shown for reference, locked server-side. --}}
+                            <input type="number" name="spareparts[{{ $i }}][qty]" value="{{ $oldSpare->qty }}" readonly
+                                class="border p-2 w-1/3 rounded-xl bg-gray-100 max-sm:w-full">
 
-                        <button type="button" onclick="removeSparepart(this)"
-                            class="bg-red-500 text-white px-3 rounded-xl max-sm:w-full max-sm:py-2">
-                            X
-                        </button>
+                            <span class="self-center whitespace-nowrap rounded-xl bg-emerald-100 px-3 py-2 text-xs font-medium text-emerald-700 max-sm:text-center"
+                                title="Recorded from warehouse issue; cannot be edited or removed here">
+                                Warehouse
+                            </span>
+                        @else
+                            <input type="number" name="spareparts[{{ $i }}][qty]" value="{{ $oldSpare->qty }}"
+                                class="border p-2 w-1/3 rounded-xl max-sm:w-full">
+
+                            <button type="button" onclick="removeSparepart(this)"
+                                class="bg-red-500 text-white px-3 rounded-xl max-sm:w-full max-sm:py-2">
+                                X
+                            </button>
+                        @endif
 
                     </div>
                 @endforeach

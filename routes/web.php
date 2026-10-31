@@ -27,6 +27,7 @@ use App\Http\Controllers\ProblemReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrScannerController;
 use App\Http\Controllers\SparepartController;
+use App\Http\Controllers\SparepartInjectionController;
 use App\Http\Controllers\SparepartPlanningController;
 use App\Http\Controllers\SparepartReportController;
 use App\Http\Controllers\SyncOperationController;
@@ -165,6 +166,12 @@ Route::middleware([
     Route::get('/sparepart-planning/mandatory/{mandatorySparepart}/edit', [SparepartPlanningController::class, 'edit'])->name('sparepart-planning.edit');
     Route::put('/sparepart-planning/mandatory/{mandatorySparepart}', [SparepartPlanningController::class, 'update'])->name('sparepart-planning.update');
     Route::delete('/sparepart-planning/mandatory/{mandatorySparepart}', [SparepartPlanningController::class, 'destroy'])->name('sparepart-planning.destroy');
+
+    // Sparepart Injection (tab of Master > Sparepart). PIC excluded by this
+    // group; SUPERVISOR limited to the GET index/show pages by RoleMiddleware.
+    Route::get('/sparepart-injection', [SparepartInjectionController::class, 'index'])->name('sparepart-injection.index');
+    Route::post('/sparepart-injection', [SparepartInjectionController::class, 'store'])->name('sparepart-injection.store');
+    Route::get('/sparepart-injection/{import}', [SparepartInjectionController::class, 'show'])->name('sparepart-injection.show')->whereNumber('import');
 
     Route::resource('spareparts', SparepartController::class);
     Route::post('/spareparts/import', [SparepartController::class, 'import'])->name('spareparts.import');

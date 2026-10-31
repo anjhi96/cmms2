@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MachineTemplateExport;
+use App\Exports\SparepartInjectionTemplateExport;
 use App\Exports\SparepartTemplateExport;
 use App\Exports\PMScheduleTemplateExport;
 use App\Exports\MachineProblemTemplateExport;
@@ -39,6 +40,14 @@ class ImportTemplateController extends Controller
                 return Excel::download(
                     new SparepartTemplateExport(),
                     'sparepart_import_template.xlsx'
+                );
+
+
+            case 'sparepart-injection':
+
+                return Excel::download(
+                    new SparepartInjectionTemplateExport(),
+                    'sparepart_injection_import_template.xlsx'
                 );
 
 

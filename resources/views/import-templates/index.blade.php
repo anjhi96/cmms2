@@ -57,6 +57,26 @@
             <div class="bg-white shadow rounded-lg p-6">
 
                 <h2 class="font-semibold text-lg">
+                    Sparepart Injection
+                </h2>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Template import pengeluaran sparepart gudang (Month, SAP Number, Qty, Order Number)
+                </p>
+
+
+                <a href="{{ route('import-templates.download', 'sparepart-injection') }}"
+                    class="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded">
+
+                    Download Template
+
+                </a>
+
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+
+                <h2 class="font-semibold text-lg">
                     PM Schedule Master
                 </h2>
 

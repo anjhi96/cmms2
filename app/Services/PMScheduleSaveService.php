@@ -240,16 +240,30 @@ class PMScheduleSaveService
 
             $pmSchedule->update(['gearbox_problem' => $gearboxProblem]);
 
-            PMSparepart::where(
-                'pm_schedule_id',
-                $pmSchedule->id
-            )->delete();
+            // Usage injected from a warehouse issue (Sparepart Injection) is
+            // authoritative: never deleted, edited or duplicated by a
+            // (possibly stale/offline) form save. Only the PIC's own rows
+            // are replaced; a submitted row for an injected sparepart is
+            // ignored because the injected row already represents it.
+            $injectedSparepartIds = PMSparepart::where('pm_schedule_id', $pmSchedule->id)
+                ->where('source', PMSparepart::SOURCE_WAREHOUSE)
+                ->pluck('sparepart_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            PMSparepart::where('pm_schedule_id', $pmSchedule->id)
+                ->where(fn ($q) => $q->whereNull('source')->orWhere('source', '!=', PMSparepart::SOURCE_WAREHOUSE))
+                ->delete();
 
             if (! empty($data['spareparts'])) {
 
                 foreach ($data['spareparts'] as $item) {
 
                     if (empty($item['sparepart_id'])) {
+                        continue;
+                    }
+
+                    if (in_array((int) $item['sparepart_id'], $injectedSparepartIds, true)) {
                         continue;
                     }
 
