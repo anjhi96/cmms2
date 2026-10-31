@@ -1,4 +1,8 @@
 {
+  "_chunk-QTnfLwEv.js": {
+    "file": "assets/chunk-QTnfLwEv.js",
+    "name": "chunk"
+  },
   "_fonts-DkuEHybc.css": {
     "file": "assets/fonts-DkuEHybc.css",
     "src": "_fonts-DkuEHybc.css"
@@ -52,7 +56,7 @@
     "src": "_instrument-sans-600-normal-DMks36a2.woff"
   },
   "resources/css/app.css": {
-    "file": "assets/app-Bwrrs_GS.css",
+    "file": "assets/app-Dh0FNzkG.css",
     "name": "app",
     "names": [
       "app.css"
@@ -61,9 +65,31 @@
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-DCAMzbvr.js",
+    "file": "assets/app-CyWyFLv8.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_chunk-QTnfLwEv.js"
+    ]
+  },
+  "resources/js/vme/main.js": {
+    "file": "assets/main-mUW05MPj.js",
+    "name": "main",
+    "src": "resources/js/vme/main.js",
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/vme/world.js"
+    ]
+  },
+  "resources/js/vme/world.js": {
+    "file": "assets/world-Brlik3Ky.js",
+    "name": "world",
+    "src": "resources/js/vme/world.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-QTnfLwEv.js",
+      "resources/js/vme/main.js"
+    ]
   }
 }

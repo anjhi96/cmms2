@@ -101,8 +101,9 @@
     <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 class="text-lg font-semibold text-slate-800">Virtual Maintenance Environment</h2>
         <p class="mt-1 text-sm text-slate-500">
-            Visualisasi 2D aktivitas maintenance FreeDOMS. Belum ada komponen yang dikembangkan.
+            Visualisasi 2D aktivitas maintenance FreeDOMS. Tahap awal tersedia: dunia 2D dan karakter PIC berbasis aktivitas aktual (default OFF). Karakter AI dan komponen lain masih direncanakan.
         </p>
+        <a href="{{ route('maintenance-intelligence.vme') }}" class="mt-3 inline-flex rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Kelola VME</a>
         <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             @foreach ($vme as $item)
                 <div class="rounded-2xl border border-slate-200 p-4">

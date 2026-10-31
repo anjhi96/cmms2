@@ -103,6 +103,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/groups/{group}', [GroupController::class, 'show'])->name('groups.show')->where('group', '[0-9]+');
 });
 
+// Virtual Maintenance Environment viewer. NOT public (unlike /monitor):
+// authenticated ADMIN / KOORDINATOR / SUPERVISOR only, area-scoped in
+// VmeAccess, and 404 unless the VME display switch is ON. Read-only.
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR'])->group(function () {
+    Route::get('/vme', [\App\Http\Controllers\VmeController::class, 'index'])->name('vme.index');
+    Route::get('/vme/snapshot', [\App\Http\Controllers\VmeController::class, 'snapshot'])->name('vme.snapshot');
+    Route::get('/vme/config', [\App\Http\Controllers\VmeController::class, 'config'])->name('vme.config');
+});
+
 Route::middleware([
     'auth',
     'role:ADMIN',
@@ -135,6 +144,11 @@ Route::middleware([
     Route::get('/maintenance-intelligence/sparepart-analyst', [\App\Http\Controllers\MaintenanceIntelligence\SparepartAnalystController::class, 'index'])->name('maintenance-intelligence.sparepart-analyst');
     Route::post('/maintenance-intelligence/sparepart-analyst/run', [\App\Http\Controllers\MaintenanceIntelligence\SparepartAnalystController::class, 'run'])->name('maintenance-intelligence.sparepart-analyst.run');
     Route::get('/maintenance-intelligence/sparepart-analyst/{run}/export', [\App\Http\Controllers\MaintenanceIntelligence\SparepartAnalystController::class, 'export'])->name('maintenance-intelligence.sparepart-analyst.export')->whereNumber('run');
+
+    // Virtual Maintenance Environment management (ADMIN only, inside MIC).
+    Route::get('/maintenance-intelligence/vme', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'index'])->name('maintenance-intelligence.vme');
+    Route::put('/maintenance-intelligence/vme/settings', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'updateSettings'])->name('maintenance-intelligence.vme.settings');
+    Route::put('/maintenance-intelligence/vme/users/{user}/avatar', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'updateAvatar'])->name('maintenance-intelligence.vme.avatar')->whereNumber('user');
 
     Route::resource('areas', AreaController::class)
         ->only([

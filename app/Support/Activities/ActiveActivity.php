@@ -16,6 +16,18 @@ use Carbon\CarbonInterface;
  */
 final class ActiveActivity
 {
+    /** Still being worked on. */
+    public const STATUS_ACTIVE = 'ACTIVE';
+
+    /** Removed from the monitor (Finish / END & START) — NOT a completed transaction. */
+    public const STATUS_CLOSED_BY_MONITOR = 'CLOSED_BY_MONITOR';
+
+    /** Source module marked the work done. The resolver never returns these; reserved for the VME layer. */
+    public const STATUS_FINISHED = 'FINISHED';
+
+    /** ACTIVE or CLOSED_BY_MONITOR, derived from $endedAt. */
+    public readonly string $status;
+
     public function __construct(
         /** Machine-readable source key: PM | GREASING | OIL_AUDIT | OIL_AUDIT_ACTION | MANUAL. */
         public readonly string $source,
@@ -47,7 +59,19 @@ final class ActiveActivity
          * panel's "Started Today" list but is never the current/active one.
          */
         public readonly ?CarbonInterface $endedAt = null,
-    ) {}
+        /** users.id of the PIC — the identity VME uses (never the name). */
+        public readonly ?int $userId = null,
+        /** Area the activity belongs to: the group's area for Greasing, otherwise the PIC's area. */
+        public readonly ?int $areaId = null,
+        /** machines.id when the activity is tied to a known machine. */
+        public readonly ?int $machineId = null,
+        /** groups.id for group-level sources (Greasing). */
+        public readonly ?int $groupId = null,
+        /** job_types.key, see JobTypeResolver. */
+        public readonly ?string $jobTypeKey = null,
+    ) {
+        $this->status = $endedAt !== null ? self::STATUS_CLOSED_BY_MONITOR : self::STATUS_ACTIVE;
+    }
 
     /**
      * Explicitly finished via the control panel's "Finish" action.

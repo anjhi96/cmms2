@@ -18,6 +18,9 @@ class RoleMiddleware
         'dashboard',
         'pm-schedules.pdf',
         'sparepart-planning.export',
+        // VME read-only JSON feeds (the page itself is vme.index).
+        'vme.snapshot',
+        'vme.config',
         // Oil Audit pages are viewable; their forms are rendered disabled.
         'oil-audits.scan',
         'oil-audits.entry',

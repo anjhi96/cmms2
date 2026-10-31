@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\ActivityMonitorClosure;
 use App\Models\Greasing;
+use App\Models\Machine;
 use App\Models\ManualActivity;
 use App\Models\PMSchedule;
 use App\Models\User;
+use App\Services\Vme\JobTypeResolver;
 use App\Support\Activities\ActiveActivity;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -46,6 +48,13 @@ use Illuminate\Support\Collection;
  */
 class ActiveActivityResolver
 {
+    private ?JobTypeResolver $jobTypes = null;
+
+    private function jobTypeKey(string $source, ?string $name = null): string
+    {
+        return ($this->jobTypes ??= new JobTypeResolver)->keyFor($source, $name);
+    }
+
     /**
      * Every activity the PIC started TODAY, newest start first. Includes
      * activities finished from the control panel (marked $endedAt) so
@@ -127,6 +136,10 @@ class ActiveActivityResolver
                     machineNumber: $pm->machine_number,
                     recordId: $pm->id,
                     endedAt: $closures->get(ActivityMonitorClosure::keyFor('PM', $pm->id)),
+                    userId: $user->id,
+                    areaId: $user->area_id,
+                    machineId: $pm->machine_id ? (int) $pm->machine_id : null,
+                    jobTypeKey: $this->jobTypeKey('PM'),
                 );
             })
             ->filter()
@@ -166,6 +179,10 @@ class ActiveActivityResolver
                     recordId: $greasing->id,
                     groupName: $greasing->group?->name,
                     endedAt: $closures->get(ActivityMonitorClosure::keyFor('GREASING', $greasing->id)),
+                    userId: $user->id,
+                    areaId: $greasing->group?->area_id ?? $user->area_id,
+                    groupId: $greasing->group_id ? (int) $greasing->group_id : null,
+                    jobTypeKey: $this->jobTypeKey('GREASING'),
                 );
             })
             ->filter()
@@ -189,6 +206,9 @@ class ActiveActivityResolver
             startedAt: $user->oil_audit_started_at,
             recordId: null,
             endedAt: $closures->get(ActivityMonitorClosure::keyFor('OIL_AUDIT', $user->id)),
+            userId: $user->id,
+            areaId: $user->area_id,
+            jobTypeKey: $this->jobTypeKey('OIL_AUDIT'),
         )];
     }
 
@@ -209,6 +229,9 @@ class ActiveActivityResolver
             startedAt: $user->oil_audit_action_started_at,
             recordId: null,
             endedAt: $closures->get(ActivityMonitorClosure::keyFor('OIL_AUDIT_ACTION', $user->id)),
+            userId: $user->id,
+            areaId: $user->area_id,
+            jobTypeKey: $this->jobTypeKey('OIL_AUDIT_ACTION'),
         )];
     }
 
@@ -230,7 +253,26 @@ class ActiveActivityResolver
                 machineNumber: $manual->machine_number,
                 recordId: $manual->id,
                 endedAt: $closures->get(ActivityMonitorClosure::keyFor('MANUAL', $manual->id)),
+                userId: $user->id,
+                areaId: $user->area_id,
+                machineId: $this->machineIdFor($manual->machine_number),
+                jobTypeKey: $this->jobTypeKey('MANUAL', $manual->name),
             ))
             ->all();
+    }
+
+    /**
+     * Manual Activity stores a free-text machine label; only an exact
+     * machines.machine_number match counts as a known machine.
+     */
+    private function machineIdFor(?string $machineNumber): ?int
+    {
+        if (blank($machineNumber)) {
+            return null;
+        }
+
+        $id = Machine::query()->where('machine_number', trim($machineNumber))->value('id');
+
+        return $id ? (int) $id : null;
     }
 }
