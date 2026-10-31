@@ -37,7 +37,7 @@ class SparepartPlanningService
      * (multi-day PMs), falling back to pm_schedules.actual_date for legacy
      * rows that have no work sessions.
      */
-    private const COMPLETION_DATE_SQL = '(COALESCE((SELECT MAX(ws.actual_date) FROM pm_work_sessions ws WHERE ws.pm_schedule_id = pm_schedules.id), pm_schedules.actual_date))';
+    public const COMPLETION_DATE_SQL = '(COALESCE((SELECT MAX(ws.actual_date) FROM pm_work_sessions ws WHERE ws.pm_schedule_id = pm_schedules.id), pm_schedules.actual_date))';
 
     /**
      * @return array{plan: Collection, actual: Collection, recap: Collection}

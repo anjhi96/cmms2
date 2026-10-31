@@ -95,6 +95,16 @@
                     </div>
                 </div>
 
+                @auth
+                    @if (auth()->user()->role === \App\Models\User::ROLE_ADMIN)
+                        <a href="{{ route('maintenance-intelligence.index') }}" class="text-slate-600 hover:text-blue-600 transition">
+
+                            Maintenance Intelligence
+
+                        </a>
+                    @endif
+                @endauth
+
             </div>
 
             {{-- Action --}}

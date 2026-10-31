@@ -128,6 +128,14 @@ Route::middleware([
     Route::post('/backup/source', [BackupController::class, 'storeSource'])->name('backup.source.store');
     Route::get('/backup/{backupRun}/download', [BackupController::class, 'download'])->name('backup.download');
 
+    // Maintenance Intelligence Center (ADMIN only). Static overview of the AI
+    // agent + Virtual Maintenance Environment workstreams. Deliberately not in
+    // the sidebar; reachable only from the landing page navbar for ADMIN.
+    Route::view('/maintenance-intelligence', 'maintenance-intelligence.index')->name('maintenance-intelligence.index');
+    Route::get('/maintenance-intelligence/sparepart-analyst', [\App\Http\Controllers\MaintenanceIntelligence\SparepartAnalystController::class, 'index'])->name('maintenance-intelligence.sparepart-analyst');
+    Route::post('/maintenance-intelligence/sparepart-analyst/run', [\App\Http\Controllers\MaintenanceIntelligence\SparepartAnalystController::class, 'run'])->name('maintenance-intelligence.sparepart-analyst.run');
+    Route::get('/maintenance-intelligence/sparepart-analyst/{run}/export', [\App\Http\Controllers\MaintenanceIntelligence\SparepartAnalystController::class, 'export'])->name('maintenance-intelligence.sparepart-analyst.export')->whereNumber('run');
+
     Route::resource('areas', AreaController::class)
         ->only([
             'index',
