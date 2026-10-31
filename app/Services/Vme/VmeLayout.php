@@ -312,7 +312,8 @@ class VmeLayout
             $this->cfg['patrol'],
         );
 
-        $shift = $seed % count($points);
+        // x3: consecutive user ids start on well-separated stops (3 is coprime with the route length).
+        $shift = ($seed * 3) % count($points);
 
         return array_values(array_merge(array_slice($points, $shift), array_slice($points, 0, $shift)));
     }

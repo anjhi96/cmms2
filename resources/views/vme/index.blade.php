@@ -32,14 +32,31 @@
                  data-state="loading"
                  data-snapshot-url="{{ $snapshotUrl }}"
                  data-config-url="{{ $configUrl }}"
+                 data-pic-url="{{ $picUrl }}"
+                 data-machine-url="{{ $machineUrl }}"
                  class="w-full"
                  style="height: clamp(22rem, 72vh, 46rem); touch-action: none;"></div>
 
-            <div class="absolute right-2 top-2 flex flex-col overflow-hidden rounded-lg border border-slate-600 bg-slate-800/90 text-white shadow">
+            <div class="absolute left-2 top-2 flex flex-col overflow-hidden rounded-lg border border-slate-600 bg-slate-800/90 text-white shadow">
                 <button type="button" id="vme-zoom-in" class="px-3 py-1 text-lg leading-none hover:bg-slate-700" aria-label="Perbesar">+</button>
                 <button type="button" id="vme-zoom-out" class="border-t border-slate-600 px-3 py-1 text-lg leading-none hover:bg-slate-700" aria-label="Perkecil">&minus;</button>
                 <button type="button" id="vme-zoom-fit" class="border-t border-slate-600 px-2 py-1 text-[10px] hover:bg-slate-700" aria-label="Tampilkan seluruh peta">FIT</button>
             </div>
+
+            {{-- Detail of the clicked PIC / machine. Filled by main.js from /vme/pics/{id} and /vme/machines/{id}. --}}
+            <aside id="vme-detail" class="absolute inset-y-0 right-0 z-10 hidden w-full max-w-sm flex-col border-l border-slate-200 bg-white shadow-xl" aria-live="polite">
+                <header class="flex items-start justify-between gap-2 border-b border-slate-200 px-4 py-3">
+                    <div class="min-w-0">
+                        <p id="vme-detail-kind" class="text-[10px] font-semibold uppercase tracking-wide text-slate-400"></p>
+                        <h3 id="vme-detail-title" class="truncate text-base font-semibold text-slate-800"></h3>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-1">
+                        <button type="button" id="vme-detail-reload" class="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50" title="Muat ulang detail">Muat ulang</button>
+                        <button type="button" id="vme-detail-close" class="rounded-lg border border-slate-300 px-2 py-1 text-sm leading-none text-slate-600 hover:bg-slate-50" aria-label="Tutup detail">&times;</button>
+                    </div>
+                </header>
+                <div id="vme-detail-body" class="flex-1 overflow-y-auto px-4 py-3 text-sm"></div>
+            </aside>
 
             <div id="vme-overlay" class="absolute inset-0 hidden flex-col items-center justify-center gap-2 bg-slate-900/90 p-6 text-center text-sm text-slate-100"></div>
         </div>

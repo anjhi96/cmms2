@@ -32,6 +32,26 @@ export class CharacterMotion {
         this.planKey = null;
         this.patrolIndex = 0;
         this.patrolTimer = 0;
+        // Side-step offset and speed factor, both set by Crowd (crowd.js). Rendered
+        // position = route position + offset; the offset decays to 0 when nobody is near.
+        this.offX = 0;
+        this.offY = 0;
+        this.speedFactor = 1;
+    }
+
+    get renderX() { return this.x + this.offX; }
+
+    get renderY() { return this.y + this.offY; }
+
+    /** True while the rendered position may still be changing because of crowd side-stepping. */
+    get offsetActive() {
+        return this.offX !== 0 || this.offY !== 0;
+    }
+
+    /** Patrolling characters begin with a staggered dwell so several auditors do not move in step. */
+    #resetPatrol(plan) {
+        this.patrolIndex = 0;
+        this.patrolTimer = -((plan.seed ?? 0) % 3) * 0.6;
     }
 
     /** True while the character needs update() calls: walking, or patrolling between stops. */
@@ -54,8 +74,7 @@ export class CharacterMotion {
 
         this.planKey = key;
         this.plan = plan;
-        this.patrolIndex = 0;
-        this.patrolTimer = 0;
+        this.#resetPatrol(plan);
 
         if (Math.hypot(plan.x - this.x, plan.y - this.y) < 0.5) {
             this.path = [];
@@ -63,7 +82,13 @@ export class CharacterMotion {
             return true;
         }
 
-        this.path = findRoute(layout, { x: this.x, y: this.y, zone: this.zone }, plan);
+        try {
+            this.path = findRoute(layout, { x: this.x, y: this.y, zone: this.zone }, plan);
+        } catch {
+            // No usable route (bad or missing layout): walk straight there rather than get stuck.
+            this.path = [];
+        }
+        if (!this.path.length) this.path = [{ x: plan.x, y: plan.y, zone: plan.zone ?? null }];
         this.state = plan.kind === 'work' ? STATE.WALKING : STATE.WALKING_BACK;
         this.anim = 'walk';
         return true;
@@ -76,19 +101,24 @@ export class CharacterMotion {
         this.zone = plan.zone ?? null;
         this.planKey = CharacterMotion.keyOf(plan);
         this.plan = plan;
-        this.patrolIndex = 0;
-        this.patrolTimer = 0;
+        this.#resetPatrol(plan);
         this.path = [];
         this.#arrive();
     }
 
-    update(dt) {
+    /**
+     * @param {number} dt seconds
+     * @param {((self: CharacterMotion, x: number, y: number) => boolean)|null} busy optional: true when a spot is taken
+     */
+    update(dt, busy = null) {
         if (!this.path.length) {
-            this.#patrol(dt);
+            // Never leave a character "walking" with nowhere to go.
+            if (this.plan && (this.state === STATE.WALKING || this.state === STATE.WALKING_BACK)) this.#arrive();
+            else this.#patrol(dt, busy);
             return;
         }
 
-        let budget = SPEED * dt;
+        let budget = SPEED * this.speedFactor * dt;
         while (budget > 0 && this.path.length) {
             const next = this.path[0];
             const dx = next.x - this.x;
@@ -114,17 +144,26 @@ export class CharacterMotion {
         if (!this.path.length) this.#arrive();
     }
 
-    /** While working a patrol, move on to the next stop once the dwell time is over. */
-    #patrol(dt) {
+    /** While working a patrol, move on to the next free stop once the dwell time is over. */
+    #patrol(dt, busy) {
         const route = this.plan?.patrol;
         if (this.state !== STATE.WORKING || !route || route.length < 2) return;
 
         this.patrolTimer += dt;
         if (this.patrolTimer < this.plan.patrolSeconds) return;
 
+        // Next stop in the loop that nobody stands on or is heading to; if every stop is
+        // taken, wait here and look again next frame (the timer stays elapsed).
+        let chosen = null;
+        for (let step = 1; step < route.length; step++) {
+            const idx = (this.patrolIndex + step) % route.length;
+            if (!busy || !busy(this, route[idx].x, route[idx].y)) { chosen = idx; break; }
+        }
+        if (chosen === null) return;
+
         this.patrolTimer = 0;
-        this.patrolIndex = (this.patrolIndex + 1) % route.length;
-        const next = route[this.patrolIndex];
+        this.patrolIndex = chosen;
+        const next = route[chosen];
         this.path = [{ x: next.x, y: next.y, zone: this.plan.zone }];
         this.state = STATE.WALKING;
         this.anim = 'walk';
@@ -136,7 +175,7 @@ export class CharacterMotion {
         if (this.plan.kind === 'work') {
             this.state = STATE.WORKING;
             this.anim = this.plan.anim;
-            this.patrolTimer = 0;
+            this.patrolTimer = this.patrolTimer < 0 ? this.patrolTimer : 0; // keep a stagger set by #resetPatrol
             // On a patrol the character keeps facing the way it walked; otherwise it faces the machine.
             if (!this.plan.patrol) this.facing = this.plan.face === 'left' ? 'left' : 'right';
         } else {

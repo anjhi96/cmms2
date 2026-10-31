@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Machine;
+use App\Models\User;
 use App\Services\Vme\VmeAccess;
+use App\Services\Vme\VmeDetailService;
 use App\Services\Vme\VmeFeature;
 use App\Services\Vme\VmeLayout;
 use App\Services\Vme\VmeSnapshotService;
@@ -26,6 +29,8 @@ class VmeController extends Controller
         return view('vme.index', [
             'snapshotUrl' => route('vme.snapshot'),
             'configUrl' => route('vme.config'),
+            'picUrl' => route('vme.pic', '__ID__'),
+            'machineUrl' => route('vme.machine', '__ID__'),
         ]);
     }
 
@@ -52,6 +57,40 @@ class VmeController extends Controller
         ];
 
         return $this->respond($request, $payload, sha1(json_encode($payload)));
+    }
+
+    /** Detail of one PIC for the side panel. Only PICs of the viewer's own scope. */
+    public function pic(Request $request, User $user, VmeDetailService $details): JsonResponse
+    {
+        $viewer = $this->ensureEnabled($request);
+
+        abort_unless($user->role === User::ROLE_PIC && $user->isActive(), 404);
+        $this->authorizeArea($viewer, $user->area_id);
+
+        return $this->noStore(response()->json($details->pic($user->loadMissing('area:id,name'), $viewer)));
+    }
+
+    /** Detail of one machine for the side panel. Only machines of the viewer's own scope. */
+    public function machine(Request $request, Machine $machine, VmeDetailService $details): JsonResponse
+    {
+        $viewer = $this->ensureEnabled($request);
+
+        $this->authorizeArea($viewer, $details->areaIdForMachine($machine));
+
+        return $this->noStore(response()->json($details->machine($machine)));
+    }
+
+    /** null area (a PIC without area, a machine whose area is not on the map) is for unrestricted viewers only. */
+    private function authorizeArea(User $viewer, ?int $areaId): void
+    {
+        $allowed = VmeAccess::allowedAreaIds($viewer);
+
+        abort_unless($allowed === null || ($areaId !== null && in_array($areaId, $allowed, true)), 403, 'Unauthorized');
+    }
+
+    private function noStore(JsonResponse $response): JsonResponse
+    {
+        return $response->header('Cache-Control', 'private, no-store');
     }
 
     private function ensureEnabled(Request $request)

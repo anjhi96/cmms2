@@ -11,6 +11,7 @@ use App\Models\VmeCharacterProfile;
 use App\Services\ActiveActivityResolver;
 use App\Support\Activities\ActiveActivity;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -230,6 +231,41 @@ class VmeSnapshotService
             'machines' => $machines,
             'groups' => $groups,
             'oil_stations' => $oilStations,
+        ];
+    }
+
+    /**
+     * One PIC's state, computed on its own (no full snapshot) with the very same rules the
+     * map uses: inactive today, the ambiguous-name rule for PM/Greasing, closed-by-monitor
+     * vs finished. Used by the detail panel.
+     *
+     * @return array{sync: bool, status: string, current: ActiveActivity|null, today: Collection<int, ActiveActivity>, last_ended: array<string, mixed>|null}
+     */
+    public function picState(User $pic): array
+    {
+        $syncOn = VmeFeature::all()[VmeFeature::ACTIVITY_SYNC];
+        $inactive = PicAvailability::query()->where('user_id', $pic->id)->whereDate('date', today())->exists();
+
+        if (! $syncOn || $inactive) {
+            return ['sync' => $syncOn, 'status' => $inactive ? 'INACTIVE' : 'IDLE', 'current' => null, 'today' => collect(), 'last_ended' => null];
+        }
+
+        $ambiguous = $this->ambiguousNames();
+        $all = (new ActiveActivityResolver)->forToday($pic);
+
+        if (isset($ambiguous[$this->normalizeName($pic->name)])) {
+            $all = $all->reject(fn (ActiveActivity $a) => in_array($a->source, self::NAME_MATCHED, true))->values();
+        }
+
+        $current = $all->first(fn (ActiveActivity $a) => ! $a->isFinished());
+        $finished = $current ? [] : ($this->finishedToday(collect([$pic]), $ambiguous)[$this->normalizeName($pic->name)] ?? []);
+
+        return [
+            'sync' => true,
+            'status' => $current ? 'WORKING' : 'IDLE',
+            'current' => $current,
+            'today' => $all,
+            'last_ended' => $current ? null : $this->lastEnded($all, $finished),
         ];
     }
 

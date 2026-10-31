@@ -1,4 +1,6 @@
 import { isStale, nextDelaySec } from './logic.js';
+import { esc as escape, panelTitle, renderMachine, renderPic } from './detail.js';
+import { detailUrl } from './select.js';
 
 const root = document.getElementById('vme-root');
 
@@ -84,7 +86,7 @@ function renderList(snapshot) {
     const ended = snapshot.pics.filter((p) => p.status === 'IDLE' && p.last_ended);
 
     const rows = working.map((p) => `
-        <li class="rounded-xl border border-slate-200 p-2">
+        <li data-pic="${p.user_id}" class="cursor-pointer rounded-xl border border-slate-200 p-2 hover:bg-slate-50">
             <div class="font-medium text-slate-800">${esc(p.name)}</div>
             <div class="text-xs text-slate-600">${esc(p.activity.label)}${p.activity.location ? ' &middot; ' + esc(p.activity.location) : ''}</div>
             <div class="text-xs text-slate-400">sejak ${hhmm(p.activity.started_at)}</div>
@@ -102,6 +104,72 @@ function renderList(snapshot) {
     el('vme-empty').classList.toggle('hidden', rows.length > 0);
 }
 
+// ── Detail panel (click a PIC / a machine) ──────────────────────────────────
+
+let detail = { sel: null, token: 0, loaded: false };
+let world = null;
+
+function detailEls() {
+    return { box: el('vme-detail'), kind: el('vme-detail-kind'), title: el('vme-detail-title'), body: el('vme-detail-body') };
+}
+
+function setDetailNote(text) {
+    const { body } = detailEls();
+    if (!body) return;
+    body.querySelector('[data-note]')?.remove();
+    if (text) body.insertAdjacentHTML('afterbegin', `<p data-note class="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">${escape(text)}</p>`);
+}
+
+function closeDetail() {
+    const { box } = detailEls();
+    detail = { sel: null, token: detail.token + 1, loaded: false };
+    box?.classList.add('hidden');
+    box?.classList.remove('flex');
+    world?.clearSelection();
+}
+
+/** Fetch and show the detail of a PIC / machine. `silent` = refresh in place without the loading state. */
+async function openDetail(sel, { silent = false } = {}) {
+    const root = el('vme-root');
+    const { box, kind, title, body } = detailEls();
+    if (!root || !box) return;
+
+    const token = ++detail.token;
+    detail.sel = sel;
+    if (!silent) {
+        detail.loaded = false;
+        box.classList.remove('hidden');
+        box.classList.add('flex');
+        kind.textContent = sel.type === 'pic' ? 'PIC' : 'Mesin';
+        title.textContent = 'Memuat…';
+        body.innerHTML = '<div class="space-y-2" aria-busy="true"><div class="h-4 w-2/3 animate-pulse rounded bg-slate-200"></div><div class="h-4 w-1/2 animate-pulse rounded bg-slate-200"></div><div class="h-16 w-full animate-pulse rounded bg-slate-100"></div></div>';
+    }
+
+    const url = detailUrl(sel.type === 'pic' ? root.dataset.picUrl : root.dataset.machineUrl, sel.id);
+    const res = await getJson(url, null, 8000);
+    if (token !== detail.token) return; // the user clicked something else meanwhile
+
+    if (res.status === 200) {
+        detail.loaded = true;
+        title.textContent = panelTitle(sel.type, res.data);
+        body.innerHTML = sel.type === 'pic' ? renderPic(res.data) : renderMachine(res.data);
+        return;
+    }
+
+    if (silent && detail.loaded) return; // keep what is shown; the next refresh will try again
+
+    const reason = {
+        401: 'Sesi berakhir. Silakan login ulang.',
+        403: 'Anda tidak berhak melihat detail ini.',
+        404: sel.type === 'pic' ? 'PIC tidak ditemukan atau VME dinonaktifkan.' : 'Mesin tidak ditemukan atau VME dinonaktifkan.',
+        0: 'Tidak dapat menghubungi server (waktu habis atau koneksi terputus).',
+    }[res.status] || `Gagal memuat detail (HTTP ${res.status}).`;
+    title.textContent = 'Detail tidak tersedia';
+    body.innerHTML = `<p class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">${escape(reason)}</p>`
+        + '<button type="button" id="vme-detail-retry" class="mt-3 rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">Coba lagi</button>';
+    el('vme-detail-retry')?.addEventListener('click', () => openDetail(sel));
+}
+
 async function boot(root) {
     let configRes = await getJson(root.dataset.configUrl, null);
     if (configRes.status === 404) {
@@ -116,10 +184,11 @@ async function boot(root) {
 
     setRender(root, 'loading', 'memuat…');
 
-    let world;
     try {
         const { createWorld } = await import('./world.js');
         world = createWorld(root, config, {
+            onSelect: (sel) => (sel ? openDetail(sel) : closeDetail()),
+            onSelectionLost: () => setDetailNote('Objek ini tidak lagi ada di peta (aktivitasnya sudah selesai atau ditutup). Data di bawah adalah yang terakhir dibaca.'),
             onStatus({ state, message, renderer, characters, machines }) {
                 if (state === 'ready') {
                     setRender(root, 'ready', `siap (${renderer})`, `Renderer ${renderer}`);
@@ -144,6 +213,17 @@ async function boot(root) {
         }
     }, 10000);
 
+    el('vme-detail-close')?.addEventListener('click', closeDetail);
+    el('vme-detail-reload')?.addEventListener('click', () => detail.sel && openDetail(detail.sel));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && detail.sel) closeDetail(); });
+    // Rows of "Aktivitas Aktual" open the same panel.
+    el('vme-list')?.addEventListener('click', (e) => {
+        const li = e.target.closest('[data-pic]');
+        if (!li) return;
+        const sel = { type: 'pic', id: Number(li.dataset.pic) };
+        world.select(sel);
+        openDetail(sel);
+    });
     el('vme-zoom-in')?.addEventListener('click', () => world.zoomIn());
     el('vme-zoom-out')?.addEventListener('click', () => world.zoomOut());
     el('vme-zoom-fit')?.addEventListener('click', () => world.fit());
@@ -200,6 +280,8 @@ async function boot(root) {
             showBanner('');
             world.applySnapshot(latest);
             renderList(latest);
+            // The open panel follows the data: re-read it in place when the snapshot changed.
+            if (detail.sel && detail.loaded) openDetail(detail.sel, { silent: true });
         } else if (r.status === 304) {
             lastOk = Date.now();
             failures = 0;

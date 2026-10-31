@@ -23,7 +23,7 @@ export function planState(pic, features = {}, options = {}) {
     // An unknown or missing animation key falls back to the generic inspection.
     const anim = resolveAnimKey(pic.activity.animation_key);
 
-    const plan = { kind: 'work', x: pic.target.x, y: pic.target.y, zone: pic.target.zone, anim, face: pic.target.face === 'left' ? 'left' : 'right' };
+    const plan = { kind: 'work', seed: pic.user_id ?? 0, x: pic.target.x, y: pic.target.y, zone: pic.target.zone, anim, face: pic.target.face === 'left' ? 'left' : 'right' };
 
     // Work done by walking around (e.g. Oil Audit): hop between the route's points every few seconds.
     if (Array.isArray(pic.target.patrol) && pic.target.patrol.length > 1) {

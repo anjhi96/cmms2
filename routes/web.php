@@ -110,6 +110,8 @@ Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR'])->group(function
     Route::get('/vme', [\App\Http\Controllers\VmeController::class, 'index'])->name('vme.index');
     Route::get('/vme/snapshot', [\App\Http\Controllers\VmeController::class, 'snapshot'])->name('vme.snapshot');
     Route::get('/vme/config', [\App\Http\Controllers\VmeController::class, 'config'])->name('vme.config');
+    Route::get('/vme/pics/{user}', [\App\Http\Controllers\VmeController::class, 'pic'])->name('vme.pic')->whereNumber('user');
+    Route::get('/vme/machines/{machine}', [\App\Http\Controllers\VmeController::class, 'machine'])->name('vme.machine')->whereNumber('machine');
 });
 
 Route::middleware([

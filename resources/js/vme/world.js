@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { createAvatarTextures, createWorldTextures } from './sprites.js';
 import { CharacterMotion } from './character.js';
+import { Crowd, minSpacing, occupancy } from './crowd.js';
 import { diffProps, initialView, planState, snapshotProps } from './logic.js';
+import { entitiesFrom, hitTest, isClick, sameSelection } from './select.js';
 
 const TEXT = { fontFamily: 'monospace', fontSize: '10px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, resolution: 3 };
 // Names/activity get a dark pill so they stay readable on any floor colour.
@@ -24,6 +26,10 @@ export function createWorld(parent, config, hooks = {}) {
     let pending = null;
     let layout = config.layout;
     const chars = new Map();
+    const crowd = new Crowd();
+    // The clicked PIC / machine ({ type: 'pic'|'machine', id }), highlighted with a ring.
+    let selection = null;
+    let selectionGfx = null;
     // Props currently drawn, keyed 'm:<machine id>' / 'g:<group id>' / 'o:<area id>'.
     // Only machines, group markers and Oil Audit stations an active PIC is using
     // exist here; they are removed as soon as nobody uses them.
@@ -61,11 +67,22 @@ export function createWorld(parent, config, hooks = {}) {
         },
         chars() {
             return [...chars.entries()].map(([id, c]) => ({
-                id, x: Math.round(c.motion.x), y: Math.round(c.motion.y), moving: c.motion.path.length > 0,
+                id, x: Math.round(c.motion.x), y: Math.round(c.motion.y), rx: Math.round(c.motion.renderX), ry: Math.round(c.motion.renderY), moving: c.motion.path.length > 0,
                 state: c.motion.state, anim: c.motion.anim, facing: c.motion.facing, zone: c.motion.zone, plays: c.plays || 0,
                 patrol: c.motion.plan?.patrol?.length || 0, patrolTimer: +c.motion.patrolTimer.toFixed(1), active: c.motion.active,
             }));
         },
+        /** Highlight (or clear) an object from outside, e.g. when a list row is clicked. */
+        select(next) { setSelection(next, false); },
+        clearSelection() { setSelection(null, false); },
+        /** Screen (CSS px, canvas-relative) position of a drawn object, for tests and tooling. */
+        screenPos(type, id) {
+            const at = positionOf({ type, id });
+            if (!at || !scene) return null;
+            const cam = scene.cameras.main;
+            return { x: (at.x - cam.worldView.x) * cam.zoom, y: (at.y - 14 - cam.worldView.y) * cam.zoom };
+        },
+        spacing() { return minSpacing([...chars.values()].map((c) => c.motion)); },
         machineIds() { return [...machines.keys()].filter((k) => k.startsWith('m:')).map((k) => Number(k.slice(2))); },
         propKeys() { return [...machines.keys()]; },
         destroy() { game.destroy(true); },
@@ -120,31 +137,95 @@ export function createWorld(parent, config, hooks = {}) {
         else if (view === 'all') fitCamera();
     }
 
+    /** Where an object is drawn (feet), or null when it is not on the map any more. */
+    function positionOf(sel) {
+        if (sel.type === 'pic') {
+            const c = chars.get(sel.id);
+            return c ? { x: c.motion.renderX, y: c.motion.renderY } : null;
+        }
+        const m = machines.get(`m:${sel.id}`);
+        return m ? { x: m.x, y: m.y } : null;
+    }
+
+    function setSelection(next, notify = true) {
+        if (sameSelection(selection, next)) return;
+        selection = next;
+        if (!next) selectionGfx?.clear();
+        if (notify) hooks.onSelect?.(next);
+    }
+
+    function drawSelection() {
+        if (!selectionGfx) return;
+        selectionGfx.clear();
+        if (!selection) return;
+
+        const at = positionOf(selection);
+        if (!at) {
+            // The thing that was selected left the map (activity ended): drop the ring, tell the panel.
+            const gone = selection;
+            selection = null;
+            hooks.onSelectionLost?.(gone);
+            return;
+        }
+
+        const pic = selection.type === 'pic';
+        selectionGfx.lineStyle(2, 0xfacc15, 1);
+        selectionGfx.strokeEllipse(at.x, at.y - (pic ? 2 : 10), pic ? 40 : 40, pic ? 14 : 22);
+        selectionGfx.setDepth(at.y + 1);
+    }
+
     function setupCameraControls() {
         const input = scene.input;
         input.addPointer(1);
         const cam = scene.cameras.main;
         updateBounds();
+        selectionGfx = scene.add.graphics();
 
         input.on('wheel', (_p, _o, _dx, dy) => zoomBy(dy < 0 ? 1.15 : 1 / 1.15));
 
         let pinch = null;
+        let down = null;
+        const hitAt = (p) => {
+            const w = cam.getWorldPoint(p.x, p.y);
+            return hitTest(entitiesFrom(chars, machines), w.x, w.y);
+        };
+
+        input.on('pointerdown', (p) => {
+            down = { x: p.x, y: p.y, t: performance.now(), multi: input.pointer1.isDown && input.pointer2.isDown };
+        });
+
         input.on('pointermove', (p) => {
             const [a, b] = [input.pointer1, input.pointer2];
             if (a.isDown && b.isDown) {
+                if (down) down.multi = true;
                 const d = Math.hypot(a.x - b.x, a.y - b.y);
                 if (pinch) zoomBy(d / pinch);
                 pinch = d;
                 return;
             }
             pinch = null;
-            if (p.isDown) {
+
+            if (p.isDown && down) {
+                // A tiny jitter while clicking is not a pan.
+                if (Math.hypot(p.x - down.x, p.y - down.y) <= 4) return;
                 view = 'user';
                 cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
                 cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
+            } else if (!p.isDown && game.canvas) {
+                // Pointing hand over anything clickable.
+                game.canvas.style.cursor = hitAt(p) ? 'pointer' : 'default';
             }
         });
-        input.on('pointerup', () => { pinch = null; });
+
+        input.on('pointerup', (p) => {
+            pinch = null;
+            const click = isClick(down, { x: p.x, y: p.y, t: performance.now() });
+            down = null;
+            if (!click) return;
+
+            const hit = hitAt(p);
+            if (hit) setSelection(hit);
+        });
     }
 
     function drawStatics() {
@@ -205,7 +286,14 @@ export function createWorld(parent, config, hooks = {}) {
     /** Push the motion state to the sprite, touching Phaser only when something changed. */
     function render(ch) {
         const m = ch.motion;
-        ch.box.setPosition(m.x, m.y).setDepth(m.y);
+        // Rendered position = route position + the crowd side-step (see crowd.js).
+        const x = m.renderX;
+        const y = m.renderY;
+        if (x !== ch.shownX || y !== ch.shownY) {
+            ch.shownX = x;
+            ch.shownY = y;
+            ch.box.setPosition(x, y).setDepth(y);
+        }
 
         const flip = m.facing === 'left';
         if (flip !== ch.shownFlip) { ch.shownFlip = flip; ch.sprite.setFlipX(flip); }
@@ -314,18 +402,33 @@ export function createWorld(parent, config, hooks = {}) {
         // Capped at 1 s so a backgrounded tab does not make characters jump on return.
         const dt = lastTick === null ? 0 : Math.min(1, Math.max(0, (time - lastTick) / 1000));
         lastTick = time;
-        for (const ch of chars.values()) {
+        // Long frames (slow device, tab coming back) are simulated in small steps so
+        // walking, patrol timers and crowd side-stepping stay stable and consistent.
+        const list = [...chars.values()];
+        const motions = list.map((c) => c.motion);
+        const busy = occupancy(motions);
+        for (let left = dt; left > 1e-6; ) {
+            const h = Math.min(left, 0.05);
+            left -= h;
             try {
-                if (ch.motion.active) {
-                    ch.motion.update(dt);
-                    render(ch);
-                }
+                crowd.step(motions, h);
             } catch (err) {
-                // An exception here would stop Phaser's whole loop (blank canvas); drop the path instead.
-                console.error('[VME] movement error', err);
-                ch.motion.path = [];
+                console.error('[VME] crowd error', err);
+                for (const m of motions) { m.offX = 0; m.offY = 0; m.speedFactor = 1; }
+            }
+            for (const ch of list) {
+                try {
+                    if (ch.motion.active) ch.motion.update(h, busy);
+                } catch (err) {
+                    // An exception here would stop Phaser's whole loop (blank canvas); drop the path instead.
+                    console.error('[VME] movement error', err);
+                    ch.motion.path = [];
+                }
             }
         }
+
+        for (const ch of list) render(ch);
+        drawSelection();
     }
 
     const size = () => ({ w: Math.max(parent.clientWidth, 320), h: Math.max(parent.clientHeight, 240) });
