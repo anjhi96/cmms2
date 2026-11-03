@@ -63,6 +63,8 @@ Route::get('/m/{machine}', [MachineHistoryController::class, 'show']);
 // or inactive one.
 Route::get('/pm-status/{area}', [PMStatusBoardController::class, 'index'])
     ->name('pm-status.show');
+Route::get('/pm-status/{area}/bulan', [PMStatusBoardController::class, 'month'])
+    ->name('pm-status.month');
 
 Route::get('/scan', [QrScannerController::class, 'index'])->name('qr.scan');
 

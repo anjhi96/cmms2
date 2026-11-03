@@ -33,7 +33,7 @@ function pmStatusBoardSchedule(Machine $machine, array $overrides = []): PMSched
 }
 
 /**
- * Shorthand for the area-scoped board URL, e.g. pmStatusUrl('wwd', ['plan_month' => 9]).
+ * Shorthand for the area-scoped board URL, e.g. pmStatusUrl('wwd').
  */
 function pmStatusUrl(string $area, array $params = []): string
 {
@@ -178,32 +178,16 @@ test('area filtering happens server-side in the query, not by fetching everythin
 // Status OPEN/CLOSED — uses existing status source of truth
 // ---------------------------------------------------------------
 
-test('a finished schedule displays as closed', function () {
+test('finished and finished_on_time schedules are not listed at all', function () {
     $machine = pmStatusBoardMachine(['machine_number' => 'MC-CLOSED']);
-    pmStatusBoardSchedule($machine, [
-        'plan_date' => now(),
-        'status' => 'FINISHED',
-        'actual_date' => now(),
-    ]);
+    pmStatusBoardSchedule($machine, ['plan_date' => now(), 'status' => 'FINISHED', 'actual_date' => now()]);
+    pmStatusBoardSchedule($machine, ['plan_date' => now(), 'status' => 'FINISHED_ON_TIME', 'actual_date' => now(), 'order_number' => 'WO-OT']);
+    pmStatusBoardSchedule($machine, ['plan_date' => now()->subMonths(2), 'status' => 'FINISHED', 'order_number' => 'WO-OLD']);
 
     $response = $this->get(pmStatusUrl('wwd'));
 
-    $row = collect($response->viewData('schedules'))->firstWhere('machine_number', 'MC-CLOSED');
-    expect($row['status'])->toBe('CLOSED');
-});
-
-test('a finished_on_time schedule displays as closed', function () {
-    $machine = pmStatusBoardMachine(['machine_number' => 'MC-CLOSED-OT']);
-    pmStatusBoardSchedule($machine, [
-        'plan_date' => now(),
-        'status' => 'FINISHED_ON_TIME',
-        'actual_date' => now(),
-    ]);
-
-    $response = $this->get(pmStatusUrl('wwd'));
-
-    $row = collect($response->viewData('schedules'))->firstWhere('machine_number', 'MC-CLOSED-OT');
-    expect($row['status'])->toBe('CLOSED');
+    expect($response->viewData('schedules'))->toHaveCount(0);
+    $response->assertDontSee('MC-CLOSED');
 });
 
 test('an open schedule with no actual pm displays as open', function () {
@@ -232,7 +216,7 @@ test('a missed schedule displays as open, not a new status', function () {
     expect($row['status'])->toBe('OPEN');
 });
 
-test('board never renders a status other than open or closed', function () {
+test('board never renders a status other than open', function () {
     $machine = pmStatusBoardMachine();
     pmStatusBoardSchedule($machine, ['plan_date' => now(), 'status' => 'IN_PROGRESS']);
     pmStatusBoardSchedule($machine, ['plan_date' => now(), 'status' => 'OPEN', 'order_number' => 'WO-2']);
@@ -241,7 +225,7 @@ test('board never renders a status other than open or closed', function () {
     $response = $this->get(pmStatusUrl('wwd'));
 
     $statuses = collect($response->viewData('schedules'))->pluck('status')->unique()->all();
-    expect($statuses)->each->toBeIn(['OPEN', 'CLOSED']);
+    expect($statuses)->each->toBe('OPEN');
 });
 
 // ---------------------------------------------------------------
@@ -256,8 +240,6 @@ test('gap day boundary cases around today = 22 sep 2026', function () {
         ['plan' => '2026-09-08', 'expected' => 14, 'red' => false],
         ['plan' => '2026-09-09', 'expected' => 13, 'red' => false],
         ['plan' => '2026-09-22', 'expected' => 0, 'red' => false],
-        ['plan' => '2026-10-06', 'expected' => -14, 'red' => false],
-        ['plan' => '2026-10-07', 'expected' => -15, 'red' => true],
     ];
 
     foreach ($cases as $i => $case) {
@@ -265,18 +247,35 @@ test('gap day boundary cases around today = 22 sep 2026', function () {
         pmStatusBoardSchedule($machine, ['plan_date' => $case['plan']]);
     }
 
-    $response = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
-    // October dates fall outside the September filter, so also check without a month filter.
-    $responseAll = $this->get(pmStatusUrl('wwd', ['plan_month' => 10, 'plan_year' => 2026]));
-
-    $allRows = collect($response->viewData('schedules'))->concat($responseAll->viewData('schedules'));
+    $rows = collect($this->get(pmStatusUrl('wwd'))->viewData('schedules'));
 
     foreach ($cases as $i => $case) {
-        $row = $allRows->firstWhere('machine_number', 'MC-GAP-'.$i);
+        $row = $rows->firstWhere('machine_number', 'MC-GAP-'.$i);
         expect($row)->not->toBeNull("row for plan {$case['plan']} not found");
         expect($row['gap_day'])->toBe($case['expected']);
         expect($row['is_gap_day_out_of_range'])->toBe($case['red']);
     }
+
+    Carbon::setTestNow();
+});
+
+test('gap day boundary on the future side is -14 normal and -15 red', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $machine = pmStatusBoardMachine(['machine_number' => 'MC-GAP-F14']);
+    pmStatusBoardSchedule($machine, ['plan_date' => '2026-10-06']);
+    $machine = pmStatusBoardMachine(['machine_number' => 'MC-GAP-F15']);
+    pmStatusBoardSchedule($machine, ['plan_date' => '2026-10-07']);
+
+    $html = $this->getJson(route('pm-status.month', ['area' => 'wwd', 'offset' => 1]))->json('desktop');
+
+    $row14 = substr($html, strpos($html, 'MC-GAP-F14'));
+    $row14 = substr($row14, 0, strpos($row14, '</tr>'));
+    $row15 = substr($html, strpos($html, 'MC-GAP-F15'));
+    $row15 = substr($row15, 0, strpos($row15, '</tr>'));
+
+    expect($row14)->toContain('-14')->toContain('bg-slate-100');
+    expect($row15)->toContain('-15')->toContain('bg-red-100');
 
     Carbon::setTestNow();
 });
@@ -286,10 +285,10 @@ test('gap day uses calendar date, not time-of-day — same day at 23:59 matches 
     pmStatusBoardSchedule($machine, ['plan_date' => '2026-09-07']);
 
     Carbon::setTestNow(Carbon::parse('2026-09-22 23:59:00', 'Asia/Jakarta'));
-    $lateNight = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
+    $lateNight = $this->get(pmStatusUrl('wwd'));
 
     Carbon::setTestNow(Carbon::parse('2026-09-22 00:01:00', 'Asia/Jakarta'));
-    $earlyMorning = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
+    $earlyMorning = $this->get(pmStatusUrl('wwd'));
 
     $lateRow = collect($lateNight->viewData('schedules'))->firstWhere('machine_number', 'MC-GAP-EOD');
     $earlyRow = collect($earlyMorning->viewData('schedules'))->firstWhere('machine_number', 'MC-GAP-EOD');
@@ -300,55 +299,25 @@ test('gap day uses calendar date, not time-of-day — same day at 23:59 matches 
     Carbon::setTestNow();
 });
 
-test('gap day does not affect open/closed status — all four combinations render correctly', function () {
+test('gap day does not affect open status — red and normal gap days both render', function () {
     Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
 
     $machine = pmStatusBoardMachine();
 
-    // CLOSED + red gap day
     pmStatusBoardSchedule($machine, [
-        'machine_number' => 'MC-CLOSED-RED',
-        'plan_date' => '2026-09-07',
-        'status' => 'FINISHED',
-        'actual_date' => '2026-09-08',
-        'order_number' => 'WO-A',
-    ]);
-
-    // CLOSED + normal gap day
-    pmStatusBoardSchedule($machine, [
-        'machine_number' => 'MC-CLOSED-NORMAL',
-        'plan_date' => '2026-09-20',
-        'status' => 'FINISHED',
-        'actual_date' => '2026-09-20',
-        'order_number' => 'WO-B',
-    ]);
-
-    // OPEN + red gap day
-    pmStatusBoardSchedule($machine, [
-        'machine_number' => 'MC-OPEN-RED',
         'plan_date' => '2026-09-01',
         'status' => 'OPEN',
         'order_number' => 'WO-C',
+        'machine_number' => 'MC-OPEN-RED',
     ]);
-
-    // OPEN + normal gap day
     pmStatusBoardSchedule($machine, [
-        'machine_number' => 'MC-OPEN-NORMAL',
         'plan_date' => '2026-09-20',
         'status' => 'OPEN',
         'order_number' => 'WO-D',
+        'machine_number' => 'MC-OPEN-NORMAL',
     ]);
 
-    $response = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
-    $rows = collect($response->viewData('schedules'));
-
-    $closedRed = $rows->firstWhere('machine_number', 'MC-CLOSED-RED');
-    expect($closedRed['status'])->toBe('CLOSED');
-    expect($closedRed['is_gap_day_out_of_range'])->toBeTrue();
-
-    $closedNormal = $rows->firstWhere('machine_number', 'MC-CLOSED-NORMAL');
-    expect($closedNormal['status'])->toBe('CLOSED');
-    expect($closedNormal['is_gap_day_out_of_range'])->toBeFalse();
+    $rows = collect($this->get(pmStatusUrl('wwd'))->viewData('schedules'));
 
     $openRed = $rows->firstWhere('machine_number', 'MC-OPEN-RED');
     expect($openRed['status'])->toBe('OPEN');
@@ -362,89 +331,161 @@ test('gap day does not affect open/closed status — all four combinations rende
 });
 
 // ---------------------------------------------------------------
-// Period filter — retained from Task 1, now scoped within the area
+// Open-only board: current month + older still-open, no period filter
 // ---------------------------------------------------------------
 
-test('period filter narrows the board to the selected month/year within the area', function () {
-    $machine = pmStatusBoardMachine();
-    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-SEP', 'plan_date' => '2026-09-15', 'order_number' => 'WO-SEP']);
-    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-OCT', 'plan_date' => '2026-10-15', 'order_number' => 'WO-OCT']);
-
-    $response = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
-
-    $numbers = collect($response->viewData('schedules'))->pluck('machine_number')->all();
-    expect($numbers)->toContain('MC-SEP');
-    expect($numbers)->not->toContain('MC-OCT');
-});
-
-test('switching area via the url preserves the period filter behavior independently per area', function () {
-    $wwd = pmStatusBoardMachine(['area' => 'WWD']);
-    $bul = pmStatusBoardMachine(['area' => 'BUL']);
-    pmStatusBoardSchedule($wwd, ['machine_number' => 'MC-WWD-SEP', 'plan_date' => '2026-09-15', 'order_number' => 'WO-W1']);
-    pmStatusBoardSchedule($bul, ['machine_number' => 'MC-BUL-SEP', 'plan_date' => '2026-09-15', 'order_number' => 'WO-B1']);
-
-    $wwdResponse = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
-    $bulResponse = $this->get(pmStatusUrl('bul', ['plan_month' => 9, 'plan_year' => 2026]));
-
-    expect(collect($wwdResponse->viewData('schedules'))->pluck('machine_number')->all())->toBe(['MC-WWD-SEP']);
-    expect(collect($bulResponse->viewData('schedules'))->pluck('machine_number')->all())->toBe(['MC-BUL-SEP']);
-});
-
-test('summary totals follow the active filters and the current area', function () {
-    $wwd = pmStatusBoardMachine(['area' => 'WWD']);
-    $bul = pmStatusBoardMachine(['area' => 'BUL']);
-    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-09-05', 'status' => 'OPEN', 'order_number' => 'WO-S1']);
-    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-09-06', 'status' => 'FINISHED', 'actual_date' => '2026-09-06', 'order_number' => 'WO-S2']);
-    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-09-07', 'status' => 'FINISHED_ON_TIME', 'actual_date' => '2026-09-07', 'order_number' => 'WO-S3']);
-    pmStatusBoardSchedule($bul, ['plan_date' => '2026-09-05', 'status' => 'FINISHED', 'actual_date' => '2026-09-05', 'order_number' => 'WO-S4']);
-
-    $response = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
-
-    $summary = $response->viewData('summary');
-    expect($summary['total'])->toBe(3);
-    expect($summary['open'])->toBe(1);
-    expect($summary['closed'])->toBe(2);
-});
-
-test('default period is the current month when no filter is given', function () {
-    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
-
+test('the period filter form is gone', function () {
     $response = $this->get(pmStatusUrl('wwd'));
 
-    expect($response->viewData('currentMonth'))->toBe(9);
-    expect($response->viewData('currentYear'))->toBe(2026);
+    $response->assertOk();
+    $response->assertDontSee('name="plan_month"', false);
+    $response->assertDontSee('name="plan_year"', false);
+});
+
+test('an open machine from an older month stays on the board with its month label', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $machine = pmStatusBoardMachine();
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-OLD', 'plan_date' => '2026-06-10', 'order_number' => 'WO-OLD']);
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-NOW', 'plan_date' => '2026-09-15', 'order_number' => 'WO-NOW']);
+
+    $rows = collect($this->get(pmStatusUrl('wwd'))->viewData('schedules'));
+
+    expect($rows->pluck('machine_number')->all())->toBe(['MC-OLD', 'MC-NOW']);
+    expect($rows->firstWhere('machine_number', 'MC-OLD')['month_label'])->toContain('2026');
+    expect($rows->firstWhere('machine_number', 'MC-OLD')['month_label'])->not->toBe($rows->firstWhere('machine_number', 'MC-NOW')['month_label']);
 
     Carbon::setTestNow();
 });
 
-test('year filter still offers the current year even with no pm schedule data at all', function () {
+test('a machine from an older month disappears once it is closed', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $machine = pmStatusBoardMachine();
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-OLD-DONE', 'plan_date' => '2026-06-10', 'status' => 'FINISHED']);
+
+    $rows = collect($this->get(pmStatusUrl('wwd'))->viewData('schedules'));
+
+    expect($rows)->toHaveCount(0);
+
+    Carbon::setTestNow();
+});
+
+test('future months are not on the initial board', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $machine = pmStatusBoardMachine();
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-NEXT', 'plan_date' => '2026-10-02']);
+
+    $rows = collect($this->get(pmStatusUrl('wwd'))->viewData('schedules'));
+
+    expect($rows)->toHaveCount(0);
+
+    Carbon::setTestNow();
+});
+
+test('the board orders by plan date then machine number', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $machine = pmStatusBoardMachine();
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-B', 'plan_date' => '2026-09-10', 'order_number' => 'WO-1']);
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-A', 'plan_date' => '2026-09-10', 'order_number' => 'WO-2']);
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-Z', 'plan_date' => '2026-07-01', 'order_number' => 'WO-3']);
+
+    $rows = collect($this->get(pmStatusUrl('wwd'))->viewData('schedules'));
+
+    expect($rows->pluck('machine_number')->all())->toBe(['MC-Z', 'MC-A', 'MC-B']);
+
+    Carbon::setTestNow();
+});
+
+test('summary totals follow the rows shown and the current area', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $wwd = pmStatusBoardMachine(['area' => 'WWD']);
+    $bul = pmStatusBoardMachine(['area' => 'BUL']);
+    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-09-05', 'status' => 'OPEN', 'order_number' => 'WO-S1']);
+    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-07-06', 'status' => 'MISSED', 'order_number' => 'WO-S2']);
+    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-09-07', 'status' => 'FINISHED_ON_TIME', 'actual_date' => '2026-09-07', 'order_number' => 'WO-S3']);
+    pmStatusBoardSchedule($bul, ['plan_date' => '2026-09-05', 'status' => 'OPEN', 'order_number' => 'WO-S4']);
+
+    $summary = $this->get(pmStatusUrl('wwd'))->viewData('summary');
+
+    expect($summary['total'])->toBe(2);
+    expect($summary['open'])->toBe(2);
+    expect($summary['closed'])->toBe(0);
+
+    Carbon::setTestNow();
+});
+
+test('the board shows a load-next-month button pointing at the month endpoint', function () {
     Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
 
     $response = $this->get(pmStatusUrl('wwd'));
 
     $response->assertOk();
-    expect($response->viewData('years'))->toContain(2026);
-    $response->assertSee('2026');
+    $response->assertSee('data-pm-month-next', false);
+    $response->assertSee(route('pm-status.month', 'wwd'), false);
+    $response->assertSee('October 2026');
 
     Carbon::setTestNow();
 });
 
-test('year filter includes a year that only has schedules in a different month, within the same area', function () {
+// ---------------------------------------------------------------
+// Month endpoint — one future month per call, up to 2 months ahead
+// ---------------------------------------------------------------
+
+test('month endpoint returns only the open machines of the requested future month, for guests', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
     $machine = pmStatusBoardMachine();
-    pmStatusBoardSchedule($machine, ['plan_date' => '2025-03-01', 'plan_month' => 'March', 'plan_year' => 2025]);
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-OCT-OPEN', 'plan_date' => '2026-10-10', 'order_number' => 'WO-1']);
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-OCT-DONE', 'plan_date' => '2026-10-11', 'status' => 'FINISHED', 'order_number' => 'WO-2']);
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-NOV-OPEN', 'plan_date' => '2026-11-10', 'order_number' => 'WO-3']);
 
-    $response = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
+    $json = $this->getJson(route('pm-status.month', ['area' => 'wwd', 'offset' => 1]))->assertOk()->json();
 
-    expect($response->viewData('years'))->toContain(2025, 2026);
+    expect($json['desktop'])->toContain('MC-OCT-OPEN')->not->toContain('MC-OCT-DONE')->not->toContain('MC-NOV-OPEN');
+    expect($json['mobile'])->toContain('MC-OCT-OPEN');
+    expect($json['has_more'])->toBeTrue();
+    expect($json['next_offset'])->toBe(2);
+
+    Carbon::setTestNow();
 });
 
-test('year filter for one area is not polluted by another area having a different year', function () {
-    $wwd = pmStatusBoardMachine(['area' => 'WWD']);
-    $bul = pmStatusBoardMachine(['area' => 'BUL']);
-    pmStatusBoardSchedule($wwd, ['plan_date' => '2026-09-01']);
-    pmStatusBoardSchedule($bul, ['plan_date' => '2019-01-01', 'plan_month' => 'January', 'plan_year' => 2019]);
+test('month endpoint offset 2 is the last one', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
 
-    $response = $this->get(pmStatusUrl('wwd', ['plan_month' => 9, 'plan_year' => 2026]));
+    $machine = pmStatusBoardMachine();
+    pmStatusBoardSchedule($machine, ['machine_number' => 'MC-NOV-OPEN', 'plan_date' => '2026-11-10']);
 
-    expect($response->viewData('years'))->not->toContain(2019);
+    $json = $this->getJson(route('pm-status.month', ['area' => 'wwd', 'offset' => 2]))->assertOk()->json();
+
+    expect($json['desktop'])->toContain('MC-NOV-OPEN');
+    expect($json['has_more'])->toBeFalse();
+    expect($json['next_offset'])->toBeNull();
+
+    Carbon::setTestNow();
+});
+
+test('month endpoint rejects offsets outside 1-2', function () {
+    foreach ([0, 3, -1, 'abc'] as $offset) {
+        $this->getJson(route('pm-status.month', ['area' => 'wwd', 'offset' => $offset]))->assertStatus(422);
+    }
+
+    $this->getJson(route('pm-status.month', ['area' => 'wwd']))->assertStatus(422);
+});
+
+test('month endpoint is scoped to the area and 404s on an unknown one', function () {
+    Carbon::setTestNow(Carbon::parse('2026-09-22', 'Asia/Jakarta'));
+
+    $bul = pmStatusBoardMachine(['machine_number' => 'MC-BUL-OCT', 'area' => 'BUL']);
+    pmStatusBoardSchedule($bul, ['plan_date' => '2026-10-10']);
+
+    $json = $this->getJson(route('pm-status.month', ['area' => 'wwd', 'offset' => 1]))->json();
+    expect($json['desktop'])->not->toContain('MC-BUL-OCT');
+
+    $this->getJson('/pm-status/abc/bulan?offset=1')->assertNotFound();
+
+    Carbon::setTestNow();
 });

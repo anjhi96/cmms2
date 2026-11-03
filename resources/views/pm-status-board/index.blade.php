@@ -35,162 +35,55 @@
         <p class="mt-1 text-slate-500">GAP DAY merah menunjukkan sudah di luar batas ±14 hari, sebaiknya tidak dipilih untuk mesin pengganti.</p>
     </div>
 
-    {{-- FILTER FORM — period only; area is fixed by the URL above. --}}
-    <form method="GET" class="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-        <div class="flex flex-wrap gap-3">
-            <div class="flex gap-2">
-                <select name="plan_month" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                    @for ($m = 1; $m <= 12; $m++)
-                        <option value="{{ $m }}" {{ $currentMonth == $m ? 'selected' : '' }}>
-                            {{ $months[$m - 1] }}
-                        </option>
-                    @endfor
-                </select>
-
-                <select name="plan_year" class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
-                    @foreach ($years as $y)
-                        <option value="{{ $y }}" {{ $currentYear == $y ? 'selected' : '' }}>
-                            {{ $y }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <button type="submit"
-                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
-                Filter
-            </button>
-
-            <a href="{{ route('pm-status.show', $areaSlug) }}"
-                class="rounded-lg bg-slate-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600">
-                Reset
-            </a>
-        </div>
-    </form>
-    
     {{-- DESKTOP TABLE --}}
     <div class="mb-4 hidden rounded-xl border border-slate-200 bg-white overflow-hidden md:block">
         <table class="w-full">
             <thead class="bg-slate-100 border-b border-slate-200">
                 <tr>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Status</th>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Bulan</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Machine</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Plan Date</th>
                     <th class="px-4 py-3 text-center text-sm font-semibold text-slate-700">Gap Day</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Actual PM Date</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
-                @forelse($schedules as $schedule)
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="px-4 py-3">
-                            <div class="flex flex-wrap items-center gap-1.5"
-                                data-pm-status-cell
-                                data-pm-status-id="{{ $schedule['id'] }}"
-                                data-pm-status-original="{{ $schedule['status'] }}">
-                                <span data-pm-status-badge
-                                    class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold
-                                    {{ $schedule['status'] === 'CLOSED' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800' }}">
-                                    {{ $schedule['status'] }}
-                                </span>
-                                @if ($canOverrideStatus)
-                                    <span data-pm-status-override-tag
-                                        class="hidden text-[10px] font-medium text-slate-400"
-                                        title="Tampilan status ini diubah manual, data mesin asli tidak berubah.">
-                                        (manual)
-                                    </span>
-                                    <button type="button"
-                                        data-pm-status-toggle
-                                        class="rounded-md border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                                        title="Override tampilan status (tidak mengubah data mesin asli)">
-                                        Ubah
-                                    </button>
-                                @endif
-                            </div>
-                        </td>
-                        <td class="px-4 py-3 font-medium text-slate-800">{{ $schedule['machine_number'] }}</td>
-                        <td class="px-4 py-3 text-slate-700">{{ $schedule['plan_date'] }}</td>
-                        <td class="px-4 py-3 text-center">
-                            <span
-                                class="inline-block rounded-full px-3 py-1 text-sm font-medium
-                                {{ $schedule['is_gap_day_out_of_range'] ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800' }}">
-                                {{ $schedule['gap_day'] > 0 ? '+' : '' }}{{ $schedule['gap_day'] }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-slate-700">
-                            {{ $schedule['actual_date'] ?? '—' }}
+            <tbody class="divide-y divide-slate-100" data-pm-rows-desktop @if ($canOverrideStatus) data-pm-can-override @endif>
+                @include('pm-status-board._rows-desktop')
+                @if ($schedules->isEmpty())
+                    <tr data-pm-empty>
+                        <td colspan="6" class="py-8 text-center text-slate-500">
+                            Tidak ada mesin PM yang masih open.
                         </td>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="py-8 text-center text-slate-500">
-                            No PM schedules found for this period.
-                        </td>
-                    </tr>
-                @endforelse
+                @endif
             </tbody>
         </table>
     </div>
 
     {{-- MOBILE CARDS --}}
-    <div class="space-y-3 md:hidden">
-        @forelse($schedules as $schedule)
-            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="mb-3 flex items-start justify-between gap-2">
-                    <div>
-                        <div class="font-semibold text-slate-800">{{ $schedule['machine_number'] }}</div>
-                        <div class="mt-1 flex flex-wrap items-center gap-1.5"
-                            data-pm-status-cell
-                            data-pm-status-id="{{ $schedule['id'] }}"
-                            data-pm-status-original="{{ $schedule['status'] }}">
-                            <span data-pm-status-badge
-                                class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold
-                                {{ $schedule['status'] === 'CLOSED' ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800' }}">
-                                {{ $schedule['status'] }}
-                            </span>
-                            @if ($canOverrideStatus)
-                                <span data-pm-status-override-tag
-                                    class="hidden text-[10px] font-medium text-slate-400"
-                                    title="Tampilan status ini diubah manual, data mesin asli tidak berubah.">
-                                    (manual)
-                                </span>
-                                <button type="button"
-                                    data-pm-status-toggle
-                                    class="rounded-md border border-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
-                                    title="Override tampilan status (tidak mengubah data mesin asli)">
-                                    Ubah
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-y-2 border-t border-slate-100 pt-3 text-xs">
-                    <div>
-                        <div class="text-slate-400">Plan Date</div>
-                        <div class="font-medium text-slate-700">{{ $schedule['plan_date'] }}</div>
-                    </div>
-                    <div>
-                        <div class="text-slate-400">Gap Day</div>
-                        <div
-                            class="font-medium
-                            {{ $schedule['is_gap_day_out_of_range'] ? 'text-red-600' : 'text-slate-700' }}">
-                            {{ $schedule['gap_day'] > 0 ? '+' : '' }}{{ $schedule['gap_day'] }}
-                        </div>
-                    </div>
-                    <div class="col-span-2">
-                        <div class="text-slate-400">Actual PM Date</div>
-                        <div class="font-medium text-slate-700">{{ $schedule['actual_date'] ?? '—' }}</div>
-                    </div>
-                </div>
+    <div class="space-y-3 md:hidden" data-pm-rows-mobile @if ($canOverrideStatus) data-pm-can-override @endif>
+        @include('pm-status-board._cards-mobile')
+        @if ($schedules->isEmpty())
+            <div data-pm-empty class="rounded-lg border border-slate-200 bg-white p-8 text-center">
+                <p class="text-slate-500">Tidak ada mesin PM yang masih open.</p>
             </div>
-        @empty
-            <div class="rounded-lg border border-slate-200 bg-white p-8 text-center">
-                <p class="text-slate-500">No PM schedules found for this period.</p>
-            </div>
-        @endforelse
+        @endif
     </div>
 
-    
+    {{-- LOAD NEXT MONTH — fetches one future month at a time (up to
+         $maxMonthOffset months ahead) and appends it without a reload. --}}
+    <div class="mt-6 text-center">
+        <button type="button"
+            data-pm-month-next
+            data-url="{{ route('pm-status.month', $areaSlug) }}"
+            data-offset="1"
+            class="text-sm text-slate-400 underline-offset-2 transition hover:text-blue-600 hover:underline">
+            Klik disini untuk memuat mesin bulan {{ $nextMonthLabel }}
+        </button>
+        <p data-pm-month-error class="mt-2 hidden text-xs text-red-600">
+            Gagal memuat data, coba lagi.
+        </p>
+    </div>
 
 @endsection

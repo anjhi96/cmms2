@@ -6,10 +6,14 @@ use App\Models\Area;
 use App\Models\PMSchedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class PMStatusBoardController extends Controller
 {
+    /** How many months ahead of the current month the board can load. */
+    private const MAX_MONTH_OFFSET = 2;
+
     /**
      * Public PM Status Board — read-only view for production team.
      * No authentication required. One area per URL (/pm-status/wwd,
@@ -26,25 +30,102 @@ class PMStatusBoardController extends Controller
      */
     public function index(Request $request, string $area)
     {
-        $areaModel = Area::where('slug', $area)->active()->firstOrFail();
+        $areaModel = $this->resolveArea($area);
         $areaCode = $areaModel->name;
 
         $now = Carbon::now('Asia/Jakarta');
 
-        // Default to current month
-        $month = (int) ($request->input('plan_month') ?? $now->month);
-        $year = (int) ($request->input('plan_year') ?? $now->year);
+        // No period filter: everything still OPEN up to and including the
+        // current month. Older months have no cut-off — a machine stays on
+        // the board for as long as it is open.
+        $schedules = $this->rows(
+            PMSchedule::query()
+                ->where('area', $areaCode)
+                ->whereNotIn('status', PMSchedule::DONE_STATUSES)
+                ->where('plan_date', '<', $now->copy()->startOfMonth()->addMonth()->toDateString()),
+            $now
+        );
 
-        $query = PMSchedule::query()
-            ->where('area', $areaCode)
-            ->whereYear('plan_date', $year)
-            ->whereMonth('plan_date', $month);
+        $summary = [
+            'total' => $schedules->count(),
+            'open' => $schedules->where('status', 'OPEN')->count(),
+            'closed' => $schedules->where('status', 'CLOSED')->count(),
+        ];
 
+        return view('pm-status-board.index', [
+            'schedules' => $schedules,
+            'canOverrideStatus' => $this->canOverrideStatus(),
+            'summary' => $summary,
+            'currentArea' => $areaCode,
+            'areaSlug' => $area,
+            'areas' => Area::active()->orderBy('name')->get(),
+            'periodLabel' => $now->translatedFormat('F Y'),
+            'nextMonthLabel' => $now->copy()->startOfMonth()->addMonth()->translatedFormat('F Y'),
+            'maxMonthOffset' => self::MAX_MONTH_OFFSET,
+            'hideSidebar' => ! Auth::check(),
+            'hideTopbar' => ! Auth::check(),
+        ]);
+    }
+
+    /**
+     * Load one future month (still-OPEN machines only) for the "load next
+     * month" button. Returns ready-to-insert row markup so the row layout
+     * lives only in the Blade partials. Public, same as the board itself.
+     */
+    public function month(Request $request, string $area)
+    {
+        $areaModel = $this->resolveArea($area);
+
+        $offset = (int) $request->query('offset');
+        abort_unless(
+            ctype_digit((string) $request->query('offset')) && $offset >= 1 && $offset <= self::MAX_MONTH_OFFSET,
+            422,
+            'Invalid month offset.'
+        );
+
+        $now = Carbon::now('Asia/Jakarta');
+        $start = $now->copy()->startOfMonth()->addMonths($offset);
+
+        $schedules = $this->rows(
+            PMSchedule::query()
+                ->where('area', $areaModel->name)
+                ->whereNotIn('status', PMSchedule::DONE_STATUSES)
+                ->where('plan_date', '>=', $start->toDateString())
+                ->where('plan_date', '<', $start->copy()->addMonth()->toDateString()),
+            $now
+        );
+
+        $canOverrideStatus = $this->canOverrideStatus();
+        $hasMore = $offset < self::MAX_MONTH_OFFSET;
+
+        return response()->json([
+            'desktop' => view('pm-status-board._rows-desktop', compact('schedules', 'canOverrideStatus'))->render(),
+            'mobile' => view('pm-status-board._cards-mobile', compact('schedules', 'canOverrideStatus'))->render(),
+            'has_more' => $hasMore,
+            'next_offset' => $hasMore ? $offset + 1 : null,
+            'next_label' => $hasMore ? $start->copy()->addMonth()->translatedFormat('F Y') : null,
+        ]);
+    }
+
+    private function resolveArea(string $slug): Area
+    {
+        return Area::where('slug', $slug)->active()->firstOrFail();
+    }
+
+    private function canOverrideStatus(): bool
+    {
+        $user = Auth::user();
+
+        return (bool) ($user && ($user->isAdmin() || $user->isKoordinator()));
+    }
+
+    private function rows($query, Carbon $now): Collection
+    {
         // Calendar-date boundary for GAP DAY, independent of the current
         // time-of-day (so 23:59 vs 00:01 on the same day gives the same gap).
         $today = $now->copy()->startOfDay();
 
-        $schedules = $query
+        return $query
             ->orderBy('plan_date', 'asc')
             ->orderBy('machine_number', 'asc')
             ->get()
@@ -56,64 +137,18 @@ class PMStatusBoardController extends Controller
                 $gapDay = (int) $planDate->diffInDays($today, false);
 
                 // Determine status: CLOSED if actual completion exists
-                $isClosed = in_array($schedule->status, ['FINISHED', 'FINISHED_ON_TIME']);
-                $displayStatus = $isClosed ? 'CLOSED' : 'OPEN';
+                $isClosed = in_array($schedule->status, PMSchedule::DONE_STATUSES, true);
 
                 return [
                     'id' => $schedule->id,
                     'machine_number' => $schedule->machine_number,
+                    'month_label' => $planDate->translatedFormat('F Y'),
                     'plan_date' => $planDate->format('d M Y'),
                     'gap_day' => $gapDay,
                     'is_gap_day_out_of_range' => $gapDay < -14 || $gapDay > 14,
                     'actual_date' => $schedule->actual_date ? Carbon::parse($schedule->actual_date, 'Asia/Jakarta')->format('d M Y') : null,
-                    'status' => $displayStatus,
+                    'status' => $isClosed ? 'CLOSED' : 'OPEN',
                 ];
             });
-
-        // SUMMARY
-        $summary = [
-            'total' => $schedules->count(),
-            'open' => $schedules->where('status', 'OPEN')->count(),
-            'closed' => $schedules->where('status', 'CLOSED')->count(),
-        ];
-
-        // FILTERS
-        $months = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December',
-        ];
-
-        // The selected year must always be a selectable option, even when
-        // no PM schedule exists yet for it in this area (e.g. a freshly
-        // seeded area or a future/empty period) — otherwise the dropdown
-        // renders blank.
-        $years = PMSchedule::where('area', $areaCode)
-            ->select('plan_year')
-            ->distinct()
-            ->orderBy('plan_year', 'desc')
-            ->pluck('plan_year');
-
-        if (! $years->contains($year)) {
-            $years = $years->push($year)->sortByDesc(fn ($y) => $y)->values();
-        }
-
-        $user = Auth::user();
-        $canOverrideStatus = $user && ($user->isAdmin() || $user->isKoordinator());
-
-        return view('pm-status-board.index', [
-            'schedules' => $schedules,
-            'canOverrideStatus' => $canOverrideStatus,
-            'summary' => $summary,
-            'months' => $months,
-            'years' => $years,
-            'currentMonth' => $month,
-            'currentYear' => $year,
-            'currentArea' => $areaCode,
-            'areaSlug' => $area,
-            'areas' => Area::active()->orderBy('name')->get(),
-            'periodLabel' => $now->translatedFormat('F Y'),
-            'hideSidebar' => ! Auth::check(),
-            'hideTopbar' => ! Auth::check(),
-        ]);
     }
 }

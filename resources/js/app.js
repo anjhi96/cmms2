@@ -8,6 +8,7 @@ import './oil-audits/entry';
 import './oil-audits/follow-up';
 import './oil-audits/action';
 import './pm-status/override';
+import './pm-status/load-month';
 
 import './offline/syncUi.js';
 import './pull-to-refresh.js';
