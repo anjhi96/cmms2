@@ -1,5 +1,9 @@
 <?php
 
+use App\Services\Vme\Ai\CoordinatorAnalysis;
+use App\Services\Vme\Ai\SparepartAnalystAnalysis;
+use App\Services\Vme\Ai\SupervisorAnalysis;
+
 /*
 |--------------------------------------------------------------------------
 | Virtual Maintenance Environment (VME)
@@ -97,6 +101,69 @@ return [
     | or starts with it) is performed in the Workshop zone.
     */
     'workshop_labels' => ['workshop', 'bengkel'],
+
+    /*
+    | AI characters (human-looking characters that watch the maintenance floor; they never work and
+    | never write to FreeDOMS). One entry per character; the class implements AiCharacterAnalysis.
+    | Adding one needs no change to the renderer. `avatar` is a key of 'ai_avatars' (or 'avatars').
+    */
+    'ai' => [
+        // Each character stays a RANDOM time between these two at every stop (desk or visit spot), so
+        // they never move in step; it then goes to a random spot, usually back to its desk afterwards.
+        'wander_min_seconds' => max(1, (int) env('VME_AI_WANDER_MIN', 3)),
+        'wander_max_seconds' => max(1, (int) env('VME_AI_WANDER_MAX', 9)),
+        // Where they may visit (zone types of /vme/config): production, workshop, office.
+        'wander_zone_types' => ['production', 'workshop'],
+        // Spots they walk to INSIDE a zone, as fractions (x, y) of the zone's width and height, by zone type.
+        // They are picked in the open floor; the crowd control keeps characters clear of PICs.
+        'visit_spots' => [
+            'production' => [[0.18, 0.2], [0.5, 0.45], [0.75, 0.3], [0.3, 0.62]],
+            'workshop' => [[0.2, 0.62], [0.5, 0.72], [0.78, 0.62]],
+        ],
+        // What counts as an ALERT. 0 disables that alert.
+        'thresholds' => [
+            'coordinator_overdue_pm' => 5,   // PMs past their due date (per Area)
+            'supervisor_unmapped' => 1,      // activities that cannot be attributed to a PIC
+            'sparepart_warnings' => 3,       // WARNING recommendations in the latest forecast
+        ],
+        'characters' => [
+            'supervisor' => [
+                'name' => 'Supervisor',
+                'role' => 'Memantau ringkasan aktivitas seluruh PIC',
+                'analysis' => SupervisorAnalysis::class,
+                'avatar' => 'ai_supervisor',
+            ],
+            // One Koordinator per active Area (key coordinator_<area>), sitting in the Office and
+            // visiting its own Area. `avatars` are handed out to the areas in turn.
+            'coordinator' => [
+                'name' => 'Koordinator',
+                'role' => 'Memantau rencana PM dan pembagian tugas',
+                'analysis' => CoordinatorAnalysis::class,
+                'per_area' => true,
+                'avatars' => ['ai_coordinator', 'ai_coordinator_2', 'ai_coordinator_3', 'ai_coordinator_4'],
+            ],
+            'sparepart_analyst' => [
+                'name' => 'Sparepart Analyst',
+                'role' => 'Memantau hasil forecast kebutuhan sparepart',
+                'analysis' => SparepartAnalystAnalysis::class,
+                'avatar' => 'ai_sparepart',
+            ],
+        ],
+    ],
+
+    /*
+    | Looks for the AI characters. Kept apart from 'avatars' on purpose: PICs get an avatar from
+    | the id of their user among 'avatars', so adding presets there would reshuffle every PIC.
+    | The browser receives both lists.
+    */
+    'ai_avatars' => [
+        'ai_supervisor' => ['label' => 'Supervisor', 'skin' => '#e0ac69', 'hair' => '#1a1a1a', 'shirt' => '#f2f2f2', 'pants' => '#1f2937'],
+        'ai_coordinator' => ['label' => 'Koordinator', 'skin' => '#f1c27d', 'hair' => '#5a3a1a', 'shirt' => '#cfe3ff', 'pants' => '#1f2937'],
+        'ai_sparepart' => ['label' => 'Sparepart Analyst', 'skin' => '#c68642', 'hair' => '#222222', 'shirt' => '#e3f4e6', 'pants' => '#374151'],
+        'ai_coordinator_2' => ['label' => 'Koordinator 2', 'skin' => '#8d5524', 'hair' => '#111111', 'shirt' => '#ffe9cf', 'pants' => '#1f2937'],
+        'ai_coordinator_3' => ['label' => 'Koordinator 3', 'skin' => '#ffdbac', 'hair' => '#7a4b1e', 'shirt' => '#e7dcff', 'pants' => '#334155'],
+        'ai_coordinator_4' => ['label' => 'Koordinator 4', 'skin' => '#e0ac69', 'hair' => '#3b2a1a', 'shirt' => '#ffd9e0', 'pants' => '#1f2937'],
+    ],
 
     // Animations the client sprite sheet implements.
     // Keep in sync with WORK_ANIM_KEYS in resources/js/vme/animations.js (a vitest checks it).

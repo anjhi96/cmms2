@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { createAvatarTextures, createWorldTextures } from './sprites.js';
 import { CharacterMotion } from './character.js';
 import { Crowd, minSpacing, occupancy } from './crowd.js';
-import { diffProps, initialView, planState, snapshotProps } from './logic.js';
+import { aiPlan, diffProps, initialView, planState, snapshotProps } from './logic.js';
 import { entitiesFrom, hitTest, isClick, sameSelection } from './select.js';
 
 const TEXT = { fontFamily: 'monospace', fontSize: '10px', color: '#ffffff', stroke: '#000000', strokeThickness: 3, resolution: 3 };
@@ -27,6 +27,9 @@ export function createWorld(parent, config, hooks = {}) {
     let layout = config.layout;
     const chars = new Map();
     const crowd = new Crowd();
+    // AI characters (VME-07), keyed by character key. They are drawn, steered by the crowd control and
+    // clickable like PICs, but are not PICs: they come from snapshot.ai.
+    const bots = new Map();
     // The clicked PIC / machine ({ type: 'pic'|'machine', id }), highlighted with a ring.
     let selection = null;
     let selectionGfx = null;
@@ -41,9 +44,23 @@ export function createWorld(parent, config, hooks = {}) {
             if (!scene) { pending = snapshot; return; }
             reconcile(snapshot);
         },
-        setLayout(next) {
+        /**
+         * `reset: true` (the Area filter changed) also removes every PIC, machine and AI character, so the
+         * next snapshot recreates them where the new layout puts them instead of sliding them across the map.
+         */
+        setLayout(next, { reset = false } = {}) {
+            // A different shape (Area filter, an Area added, the Office grew a row of desks) moves
+            // everything: recreate the objects rather than slide them across the map.
+            reset = reset || shapeOf(next) !== shapeOf(layout);
             layout = next;
-            if (scene) drawStatics();
+            if (!scene) return;
+            if (reset) resetObjects();
+            drawStatics();
+            if (reset) {
+                view = 'initial';
+                focused = false;
+            }
+            applyView();
         },
         zoomIn() { zoomBy(1.25); },
         zoomOut() { zoomBy(1 / 1.25); },
@@ -59,6 +76,7 @@ export function createWorld(parent, config, hooks = {}) {
                 renderer: game.renderer?.type === Phaser.WEBGL ? 'WebGL' : 'Canvas',
                 canvas: game.canvas ? { w: game.canvas.width, h: game.canvas.height } : null,
                 characters: chars.size,
+                bots: bots.size,
                 machines: machines.size,
                 objects: scene ? scene.children.length : 0,
                 zoom: scene ? scene.cameras.main.zoom : null,
@@ -83,6 +101,11 @@ export function createWorld(parent, config, hooks = {}) {
             return { x: (at.x - cam.worldView.x) * cam.zoom, y: (at.y - 14 - cam.worldView.y) * cam.zoom };
         },
         spacing() { return minSpacing([...chars.values()].map((c) => c.motion)); },
+        bots() {
+            return [...bots.entries()].map(([key, b]) => ({
+                key, x: Math.round(b.motion.x), y: Math.round(b.motion.y), state: b.motion.state, anim: b.motion.anim, zone: b.motion.zone, moving: b.motion.path.length > 0,
+            }));
+        },
         machineIds() { return [...machines.keys()].filter((k) => k.startsWith('m:')).map((k) => Number(k.slice(2))); },
         propKeys() { return [...machines.keys()]; },
         destroy() { game.destroy(true); },
@@ -137,11 +160,31 @@ export function createWorld(parent, config, hooks = {}) {
         else if (view === 'all') fitCamera();
     }
 
+    function shapeOf(l) {
+        return JSON.stringify([l.world.width, l.world.height, l.zones.map((z) => [z.key, z.x, z.y, z.w, z.h])]);
+    }
+
+    /** Remove everything that comes from a snapshot (PICs, machines/groups/stations, AI characters, selection). */
+    function resetObjects() {
+        for (const ch of chars.values()) ch.box.destroy(true);
+        chars.clear();
+        for (const b of bots.values()) { b.box.destroy(true); b.desk.destroy(); }
+        bots.clear();
+        for (const o of machines.values()) { o.image.destroy(); o.text.destroy(); }
+        machines.clear();
+        setSelection(null, false);
+        pending = null;
+    }
+
     /** Where an object is drawn (feet), or null when it is not on the map any more. */
     function positionOf(sel) {
         if (sel.type === 'pic') {
             const c = chars.get(sel.id);
             return c ? { x: c.motion.renderX, y: c.motion.renderY } : null;
+        }
+        if (sel.type === 'ai') {
+            const b = bots.get(sel.id);
+            return b ? { x: b.motion.renderX, y: b.motion.renderY } : null;
         }
         const m = machines.get(`m:${sel.id}`);
         return m ? { x: m.x, y: m.y } : null;
@@ -168,7 +211,7 @@ export function createWorld(parent, config, hooks = {}) {
             return;
         }
 
-        const pic = selection.type === 'pic';
+        const pic = selection.type === 'pic' || selection.type === 'ai';
         selectionGfx.lineStyle(2, 0xfacc15, 1);
         selectionGfx.strokeEllipse(at.x, at.y - (pic ? 2 : 10), pic ? 40 : 40, pic ? 14 : 22);
         selectionGfx.setDepth(at.y + 1);
@@ -187,7 +230,7 @@ export function createWorld(parent, config, hooks = {}) {
         let down = null;
         const hitAt = (p) => {
             const w = cam.getWorldPoint(p.x, p.y);
-            return hitTest(entitiesFrom(chars, machines), w.x, w.y);
+            return hitTest(entitiesFrom(chars, machines, bots), w.x, w.y);
         };
 
         input.on('pointerdown', (p) => {
@@ -342,6 +385,7 @@ export function createWorld(parent, config, hooks = {}) {
     function reconcile(snapshot) {
         const features = snapshot.features || {};
         reconcileProps(snapshot);
+        reconcileBots(snapshot.ai || []);
         const seen = new Set();
 
         for (const pic of snapshot.pics) {
@@ -362,6 +406,82 @@ export function createWorld(parent, config, hooks = {}) {
         if (!focused && chars.size) {
             focused = true;
             if (view === 'initial') applyInitialView();
+        }
+    }
+
+    const BOT_LABEL = { ALERT: '#b91c1c', WORKING: '#047857' };
+
+    function makeBot(entry, plan) {
+        // Same human sprite sheets as the PICs (their `avatar_key` is a look from /vme/config avatars).
+        const texKey = 'char_' + entry.avatar_key;
+        const shadow = scene.add.image(0, 0, 'shadow').setOrigin(0.5, 0.5).setScale(1.6);
+        const sprite = scene.add.sprite(0, 0, texKey, 0).setOrigin(0.5, 1).setScale(2);
+        const label = scene.add.text(0, -52, '', NAME).setOrigin(0.5, 1);
+        const box = scene.add.container(plan.x, plan.y, [shadow, sprite, label]);
+        const desk = scene.add.image(entry.desk.x, entry.desk.y, 'desk').setOrigin(0.5, 1).setDepth(entry.desk.y);
+        return { box, sprite, label, desk, avatar: entry.avatar_key, motion: new CharacterMotion(plan), shownAnim: null };
+    }
+
+    function renderBot(b) {
+        const m = b.motion;
+        const x = m.renderX;
+        const y = m.renderY;
+        if (x !== b.shownX || y !== b.shownY) {
+            b.shownX = x;
+            b.shownY = y;
+            b.box.setPosition(x, y).setDepth(y);
+        }
+        const flip = m.facing === 'left';
+        if (flip !== b.shownFlip) { b.shownFlip = flip; b.sprite.setFlipX(flip); }
+        if (m.anim !== b.shownAnim) {
+            b.shownAnim = m.anim;
+            b.sprite.play(`${b.avatar}:${m.anim}`);
+        }
+    }
+
+    /** Create / update / remove the AI characters to match snapshot.ai. Nothing is rebuilt when nothing changed. */
+    function reconcileBots(list) {
+        const zones = layout.zones || [];
+        const seen = new Set();
+
+        list.forEach((entry, index) => {
+            seen.add(entry.character_key);
+            try {
+                const plan = aiPlan(entry, {
+                    zones,
+                    zoneTypes: config.ai?.wander_zone_types || ['production', 'workshop'],
+                    visitSpots: config.ai?.visit_spots || {},
+                    wanderMin: config.ai?.wander_min_seconds || 3,
+                    wanderMax: config.ai?.wander_max_seconds || 9,
+                    index,
+                });
+
+                let b = bots.get(entry.character_key);
+                if (b && b.avatar !== entry.avatar_key) { // its look changed in config: rebuild just this character
+                    b.box.destroy(true); b.desk.destroy();
+                    bots.delete(entry.character_key);
+                    b = null;
+                }
+                if (!b) {
+                    b = makeBot(entry, plan);
+                    b.motion.spawn(plan);
+                    bots.set(entry.character_key, b);
+                    renderBot(b);
+                }
+
+                const text = entry.status === 'ALERT' ? `! ${entry.name}` : entry.name;
+                if (text !== b.text) { b.text = text; b.label.setText(text); }
+                const bg = BOT_LABEL[entry.status] || NAME.backgroundColor;
+                if (bg !== b.bg) { b.bg = bg; b.label.setBackgroundColor(bg); }
+
+                if (b.motion.setPlan(plan, layout)) renderBot(b);
+            } catch (err) {
+                console.error('[VME] could not draw AI character', entry.character_key, err);
+            }
+        });
+
+        for (const [key, b] of bots) {
+            if (!seen.has(key)) { b.box.destroy(true); b.desk.destroy(); bots.delete(key); }
         }
     }
 
@@ -405,7 +525,8 @@ export function createWorld(parent, config, hooks = {}) {
         // Long frames (slow device, tab coming back) are simulated in small steps so
         // walking, patrol timers and crowd side-stepping stay stable and consistent.
         const list = [...chars.values()];
-        const motions = list.map((c) => c.motion);
+        const botList = [...bots.values()];
+        const motions = [...list, ...botList].map((c) => c.motion);
         const busy = occupancy(motions);
         for (let left = dt; left > 1e-6; ) {
             const h = Math.min(left, 0.05);
@@ -416,7 +537,7 @@ export function createWorld(parent, config, hooks = {}) {
                 console.error('[VME] crowd error', err);
                 for (const m of motions) { m.offX = 0; m.offY = 0; m.speedFactor = 1; }
             }
-            for (const ch of list) {
+            for (const ch of [...list, ...botList]) {
                 try {
                     if (ch.motion.active) ch.motion.update(h, busy);
                 } catch (err) {
@@ -428,6 +549,7 @@ export function createWorld(parent, config, hooks = {}) {
         }
 
         for (const ch of list) render(ch);
+        for (const b of botList) renderBot(b);
         drawSelection();
     }
 

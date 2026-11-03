@@ -23,6 +23,7 @@ class RoleMiddleware
         'vme.config',
         'vme.pic',
         'vme.machine',
+        'vme.ai',
         // Oil Audit pages are viewable; their forms are rendered disabled.
         'oil-audits.scan',
         'oil-audits.entry',

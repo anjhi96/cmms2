@@ -18,7 +18,10 @@ class VmeFeature
 
     public const HUMAN_MOVEMENT = 'human_movement';
 
-    public const KEYS = [self::DISPLAY, self::ACTIVITY_SYNC, self::HUMAN_MOVEMENT];
+    /** Master switch for the AI characters (VME-07). Each character also has its own switch, default ON. */
+    public const AI_CHARACTERS = 'ai_characters';
+
+    public const KEYS = [self::DISPLAY, self::ACTIVITY_SYNC, self::HUMAN_MOVEMENT, self::AI_CHARACTERS];
 
     public static function killed(): bool
     {
@@ -59,6 +62,30 @@ class VmeFeature
     public static function enabled(string $key): bool
     {
         return self::all()[$key] ?? false;
+    }
+
+    /** Per-character switch (default ON); the master switch and the kill switch still apply. */
+    public static function characterEnabled(string $character): bool
+    {
+        $rows = [];
+
+        try {
+            $rows = VmeSetting::query()->where('key', 'vme.ai.'.$character)->pluck('value', 'key')->all();
+        } catch (Throwable) {
+            // Table missing => defaults.
+        }
+
+        return ($rows['vme.ai.'.$character] ?? '1') === '1';
+    }
+
+    public static function setCharacter(string $character, bool $on, ?int $userId = null): void
+    {
+        VmeSetting::updateOrCreate(
+            ['key' => 'vme.ai.'.$character],
+            ['value' => $on ? '1' : '0', 'updated_by' => $userId],
+        );
+
+        VmeSnapshotService::flush();
     }
 
     public static function set(string $key, bool $on, ?int $userId = null): void

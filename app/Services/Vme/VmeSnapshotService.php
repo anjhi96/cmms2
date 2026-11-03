@@ -2,6 +2,7 @@
 
 namespace App\Services\Vme;
 
+use App\Models\Area;
 use App\Models\Greasing;
 use App\Models\JobType;
 use App\Models\PicAvailability;
@@ -9,6 +10,8 @@ use App\Models\PMSchedule;
 use App\Models\User;
 use App\Models\VmeCharacterProfile;
 use App\Services\ActiveActivityResolver;
+use App\Services\Vme\Ai\AiCharacterService;
+use App\Services\Vme\Ai\AiContext;
 use App\Support\Activities\ActiveActivity;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -23,24 +26,34 @@ use Illuminate\Support\Facades\Cache;
  */
 class VmeSnapshotService
 {
-    private const CACHE_KEY = 'vme:snapshot:v1';
+    private const CACHE_KEY = 'vme:snapshot:v2';
 
     /** Sources matched to a PIC by NAME only (pm_schedules.pic / greasings.pic). */
     private const NAME_MATCHED = ['PM', 'GREASING'];
 
+    /** One cache entry per Area filter (plus "all"). */
+    private static function cacheKey(?int $areaId): string
+    {
+        return self::CACHE_KEY.':'.($areaId ?? 'all');
+    }
+
     public static function flush(): void
     {
-        Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::cacheKey(null));
+
+        foreach (Area::query()->pluck('id') as $id) {
+            Cache::forget(self::cacheKey((int) $id));
+        }
     }
 
     /** Unscoped snapshot, cached briefly so polling never hammers shared hosting. */
-    public function cached(): array
+    public function cached(?int $areaId = null): array
     {
         $ttl = (int) config('vme.snapshot_ttl');
 
         return $ttl > 0
-            ? Cache::remember(self::CACHE_KEY, $ttl, fn () => $this->build())
-            : $this->build();
+            ? Cache::remember(self::cacheKey($areaId), $ttl, fn () => $this->build($areaId))
+            : $this->build($areaId);
     }
 
     /**
@@ -48,10 +61,11 @@ class VmeSnapshotService
      * a version hash that changes only when the visible data changes (used as ETag).
      *
      * @param  list<int>|null  $allowedAreaIds
+     * @param  int|null  $areaFilter  an Area chosen in the map's Area filter (already checked against the viewer's scope)
      */
-    public function forViewer(?array $allowedAreaIds, bool $isAdmin): array
+    public function forViewer(?array $allowedAreaIds, bool $isAdmin, ?int $areaFilter = null): array
     {
-        $snapshot = $this->cached();
+        $snapshot = $this->cached($areaFilter);
 
         if ($allowedAreaIds !== null) {
             $snapshot['pics'] = array_values(array_filter(
@@ -78,6 +92,12 @@ class VmeSnapshotService
             unset($snapshot['sync']['unmapped_count']);
         }
 
+        // The AI summaries are floor-wide: viewers limited to some areas see the characters and their
+        // status, but not the summary text.
+        if ($allowedAreaIds !== null) {
+            $snapshot['ai'] = array_map(fn (array $a) => ['summary' => null] + $a, $snapshot['ai']);
+        }
+
         $generatedAt = $snapshot['generated_at'];
         unset($snapshot['generated_at']);
         $snapshot['version'] = sha1(json_encode($snapshot));
@@ -86,17 +106,18 @@ class VmeSnapshotService
         return $snapshot;
     }
 
-    public function build(): array
+    public function build(?int $areaId = null): array
     {
         $features = VmeFeature::all();
         $syncOn = $features[VmeFeature::ACTIVITY_SYNC];
-        $layout = VmeLayout::make();
+        $layout = VmeLayout::make($areaId);
         $resolver = new ActiveActivityResolver;
 
         $pics = User::query()
             ->select(['id', 'name', 'role', 'area_id', 'oil_audit_started_at', 'oil_audit_action_started_at'])
             ->where('role', User::ROLE_PIC)
             ->where('is_active', true)
+            ->when($areaId, fn ($q, $id) => $q->where('area_id', $id))
             ->orderBy('name')->orderBy('id')
             ->get();
 
@@ -219,6 +240,18 @@ class VmeSnapshotService
 
         $out = $this->spreadSharedTargets($out);
 
+        // AI characters (VME-07): read-only analyses, stored in ai_character_runs. They are always
+        // computed from the whole floor (the unfiltered snapshot); an Area filter only picks which
+        // of them are shown and where their desks go.
+        $ai = $areaId === null
+            ? app(AiCharacterService::class)->statuses(new AiContext(
+                pics: array_map(fn (array $p) => ['user_id' => $p['user_id'], 'status' => $p['status'], 'area_id' => $p['area_id']], $out),
+                activitySync: $syncOn,
+                unmapped: $unmapped,
+            ))
+            : $this->aiForArea($this->cached(null)['ai'], $areaId);
+        $ai = $this->placeAiDesks($ai, $layout);
+
         return [
             'generated_at' => now()->toIso8601String(),
             'features' => $features,
@@ -228,10 +261,40 @@ class VmeSnapshotService
                 'unmapped_count' => $unmapped,
             ],
             'pics' => $out,
+            'ai' => $ai,
             'machines' => $machines,
             'groups' => $groups,
             'oil_stations' => $oilStations,
         ];
+    }
+
+    /**
+     * The AI characters of the whole floor narrowed to an Area filter: the ones not tied to an Area
+     * plus that Area's own.
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private function aiForArea(array $entries, int $areaId): array
+    {
+        return array_values(array_filter($entries, fn (array $e) => $e['area_id'] === null || $e['area_id'] === $areaId));
+    }
+
+    /**
+     * Turn each entry's desk number into a desk position on the Office of THIS layout (numbered in
+     * the order shown, so a filtered map has no empty desks).
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private function placeAiDesks(array $entries, VmeLayout $layout): array
+    {
+        return array_map(function (array $entry, int $index) use ($layout) {
+            $desk = $layout->aiDeskPoint($index);
+            $entry['desk'] = ['x' => $desk['x'], 'y' => $desk['y']];
+
+            return $entry;
+        }, $entries, array_keys($entries));
     }
 
     /**

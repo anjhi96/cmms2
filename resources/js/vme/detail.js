@@ -15,6 +15,12 @@ export const PIC_STATUS = {
     INACTIVE: ['Tidak aktif hari ini', 'bg-amber-100 text-amber-800'],
 };
 
+export const AI_STATUS = {
+    WORKING: ['Bekerja (menganalisis)', 'bg-emerald-100 text-emerald-700'],
+    ALERT: ['Perlu perhatian', 'bg-red-100 text-red-700'],
+    IDLE: ['Idle (memantau)', 'bg-slate-100 text-slate-600'],
+};
+
 export const PM_STATUS = {
     OPEN: 'Terjadwal',
     IN_PROGRESS: 'Berjalan',
@@ -136,6 +142,33 @@ export function renderMachine(d) {
     return html;
 }
 
+/** Panel body for a clicked AI character (it only watches). */
+export function renderAi(d) {
+    const [statusText, statusClass] = AI_STATUS[d.status] || [d.status, 'bg-slate-100 text-slate-600'];
+    let html = `<p class="text-xs text-slate-500">${esc(d.character.role)}</p>`
+        + `<div class="mt-2 flex flex-wrap items-center gap-2"><span class="rounded-full px-2.5 py-0.5 text-xs font-medium ${statusClass}">${esc(statusText)}</span>`
+        + `<span class="text-xs text-slate-500">Analisis terakhir ${d.updated_at ? esc(formatTime(d.updated_at)) : '-'}</span></div>`;
+
+    if (d.restricted) {
+        html += section('Ringkasan', empty('Ringkasan analisis AI mencakup seluruh area, jadi hanya tampil untuk peran dengan akses semua area.'));
+    } else {
+        html += section('Ringkasan hasil terakhir', `<p class="mt-1 text-sm text-slate-700">${esc(d.summary)}</p>`);
+
+        if (d.details?.length) {
+            html += section('Rincian', `<dl class="mt-1 text-sm">${d.details.map((r) => row(r.label, esc(r.value))).join('')}</dl>`);
+        }
+    }
+
+    if (d.source_ref) {
+        html += `<p class="mt-3 text-xs text-slate-500">Sumber data: ${esc(d.source_ref.type)} #${esc(d.source_ref.id)}</p>`;
+    }
+
+    html += `<p class="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">Karakter AI hanya memantau. Ia tidak mengerjakan atau mengubah data FreeDOMS. Sumber analisis: ${esc(d.character.source)}.</p>`;
+
+    return html + link(d.link);
+}
+
 export function panelTitle(kind, d) {
+    if (kind === 'ai') return d.character.name;
     return kind === 'pic' ? d.pic.name : `Mesin ${d.machine.number}`;
 }

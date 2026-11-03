@@ -16,10 +16,23 @@
             <a href="{{ route('home') }}" class="text-sm text-slate-500 hover:text-blue-600">&larr; Landing Page</a>
             <h1 class="text-lg font-semibold text-slate-800">Virtual Maintenance Environment</h1>
         </div>
-        <div id="vme-hud" class="flex flex-wrap items-center gap-2 text-xs">
-            <span id="vme-render" class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600" title="Status rendering peta">Peta: memuat…</span>
-            <span id="vme-sync" class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">Memuat…</span>
-            <span id="vme-updated" class="text-slate-500"></span>
+        <div class="flex flex-wrap items-center gap-3">
+            {{-- Area filter: shows the map of one Area (next to Office and Workshop). Only Areas the viewer may see. --}}
+            <label for="vme-area" class="flex items-center gap-2 text-xs font-medium text-slate-600">
+                Area
+                <select id="vme-area" class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800">
+                    <option value="">Semua area</option>
+                    @foreach ($areaOptions as $option)
+                        <option value="{{ $option->slug }}" @selected($selectedArea === $option->slug)>{{ $option->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+
+            <div id="vme-hud" class="flex flex-wrap items-center gap-2 text-xs">
+                <span id="vme-render" class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600" title="Status rendering peta">Peta: memuat…</span>
+                <span id="vme-sync" class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">Memuat…</span>
+                <span id="vme-updated" class="text-slate-500"></span>
+            </div>
         </div>
     </div>
 
@@ -30,10 +43,12 @@
         <div class="relative min-w-0 self-start overflow-hidden rounded-2xl border border-slate-300 bg-slate-900 shadow-sm">
             <div id="vme-root"
                  data-state="loading"
+                 data-area="{{ $selectedArea }}"
                  data-snapshot-url="{{ $snapshotUrl }}"
                  data-config-url="{{ $configUrl }}"
                  data-pic-url="{{ $picUrl }}"
                  data-machine-url="{{ $machineUrl }}"
+                 data-ai-url="{{ $aiUrl }}"
                  class="w-full"
                  style="height: clamp(22rem, 72vh, 46rem); touch-action: none;"></div>
 

@@ -10,6 +10,7 @@
         'display' => ['VME Display', 'Menampilkan halaman peta VME (/vme).'],
         'activity_sync' => ['Today Activity Synchronization', 'Snapshot membaca aktivitas aktual PIC dari FreeDOMS. OFF = karakter selalu idle.'],
         'human_movement' => ['Human Character Movement', 'Karakter berjalan ke lokasi aktivitas. OFF = karakter tetap di basis.'],
+        'ai_characters' => ['AI Character Display', 'Menampilkan karakter AI di Office (hanya memantau, tidak mengubah data FreeDOMS). OFF = karakter AI tidak tampil.'],
     ];
 @endphp
 
@@ -56,6 +57,22 @@
                     </span>
                 </label>
             @endforeach
+            @if (count($aiCharacters))
+                <input type="hidden" name="characters_submitted" value="1">
+                <div class="rounded-2xl border border-slate-200 p-4">
+                    <p class="text-sm font-semibold text-slate-800">Karakter AI</p>
+                    <p class="text-xs text-slate-500">Berlaku bila AI Character Display ON. Karakter yang dimatikan tidak tampil di peta.</p>
+                    <div class="mt-2 space-y-1">
+                        @foreach ($aiCharacters as $key => $c)
+                            <label class="flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="character_{{ $key }}" value="1" class="mt-1" @checked($c['enabled'])>
+                                <span><span class="font-medium">{{ $c['name'] }}</span> <span class="text-xs text-slate-500">&mdash; {{ $c['role'] }}</span></span>
+                            </label>
+                        @endforeach
+                    </div>
+                    <a href="{{ route('maintenance-intelligence.vme.ai-runs') }}" class="mt-3 inline-flex text-sm text-blue-700 hover:underline">Lihat kumpulan hasil AI &rarr;</a>
+                </div>
+            @endif
             <button class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Simpan</button>
         </form>
     </section>

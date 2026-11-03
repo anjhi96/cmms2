@@ -111,6 +111,7 @@ Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR'])->group(function
     Route::get('/vme/snapshot', [\App\Http\Controllers\VmeController::class, 'snapshot'])->name('vme.snapshot');
     Route::get('/vme/config', [\App\Http\Controllers\VmeController::class, 'config'])->name('vme.config');
     Route::get('/vme/pics/{user}', [\App\Http\Controllers\VmeController::class, 'pic'])->name('vme.pic')->whereNumber('user');
+    Route::get('/vme/ai/{key}', [\App\Http\Controllers\VmeController::class, 'ai'])->name('vme.ai')->where('key', '[a-z0-9_]+');
     Route::get('/vme/machines/{machine}', [\App\Http\Controllers\VmeController::class, 'machine'])->name('vme.machine')->whereNumber('machine');
 });
 
@@ -149,6 +150,7 @@ Route::middleware([
 
     // Virtual Maintenance Environment management (ADMIN only, inside MIC).
     Route::get('/maintenance-intelligence/vme', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'index'])->name('maintenance-intelligence.vme');
+    Route::get('/maintenance-intelligence/vme/ai-runs', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'aiRuns'])->name('maintenance-intelligence.vme.ai-runs');
     Route::put('/maintenance-intelligence/vme/settings', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'updateSettings'])->name('maintenance-intelligence.vme.settings');
     Route::put('/maintenance-intelligence/vme/users/{user}/avatar', [\App\Http\Controllers\MaintenanceIntelligence\VmeAdminController::class, 'updateAvatar'])->name('maintenance-intelligence.vme.avatar')->whereNumber('user');
 

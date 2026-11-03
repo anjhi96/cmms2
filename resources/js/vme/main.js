@@ -1,8 +1,9 @@
-import { isStale, nextDelaySec } from './logic.js';
-import { esc as escape, panelTitle, renderMachine, renderPic } from './detail.js';
-import { detailUrl } from './select.js';
+import { isStale, nextDelaySec, withArea } from './logic.js';
+import { esc as escape, panelTitle, renderAi, renderMachine, renderPic } from './detail.js';
+import { detailTarget } from './select.js';
 
 const root = document.getElementById('vme-root');
+const el = (id) => document.getElementById(id); // defined before boot() runs (it uses it straight away)
 
 if (root) {
     boot(root).catch((err) => {
@@ -12,7 +13,6 @@ if (root) {
     });
 }
 
-const el = (id) => document.getElementById(id);
 
 /** Rendering status chip + root data-state; never leaves a blank canvas unexplained. */
 function setRender(root, state, text, detail) {
@@ -140,19 +140,21 @@ async function openDetail(sel, { silent = false } = {}) {
         detail.loaded = false;
         box.classList.remove('hidden');
         box.classList.add('flex');
-        kind.textContent = sel.type === 'pic' ? 'PIC' : 'Mesin';
+        kind.textContent = { pic: 'PIC', machine: 'Mesin', ai: 'Karakter AI' }[sel.type] || '';
         title.textContent = 'Memuat…';
         body.innerHTML = '<div class="space-y-2" aria-busy="true"><div class="h-4 w-2/3 animate-pulse rounded bg-slate-200"></div><div class="h-4 w-1/2 animate-pulse rounded bg-slate-200"></div><div class="h-16 w-full animate-pulse rounded bg-slate-100"></div></div>';
     }
 
-    const url = detailUrl(sel.type === 'pic' ? root.dataset.picUrl : root.dataset.machineUrl, sel.id);
+    const target = detailTarget(sel, { pic: root.dataset.picUrl, machine: root.dataset.machineUrl, ai: root.dataset.aiUrl });
+    if (!target) return;
+    const url = target.url;
     const res = await getJson(url, null, 8000);
     if (token !== detail.token) return; // the user clicked something else meanwhile
 
     if (res.status === 200) {
         detail.loaded = true;
         title.textContent = panelTitle(sel.type, res.data);
-        body.innerHTML = sel.type === 'pic' ? renderPic(res.data) : renderMachine(res.data);
+        body.innerHTML = { pic: renderPic, machine: renderMachine, ai: renderAi }[sel.type](res.data);
         return;
     }
 
@@ -161,7 +163,7 @@ async function openDetail(sel, { silent = false } = {}) {
     const reason = {
         401: 'Sesi berakhir. Silakan login ulang.',
         403: 'Anda tidak berhak melihat detail ini.',
-        404: sel.type === 'pic' ? 'PIC tidak ditemukan atau VME dinonaktifkan.' : 'Mesin tidak ditemukan atau VME dinonaktifkan.',
+        404: { pic: 'PIC tidak ditemukan atau VME dinonaktifkan.', machine: 'Mesin tidak ditemukan atau VME dinonaktifkan.', ai: 'Karakter AI tidak ditemukan atau dinonaktifkan.' }[sel.type],
         0: 'Tidak dapat menghubungi server (waktu habis atau koneksi terputus).',
     }[res.status] || `Gagal memuat detail (HTTP ${res.status}).`;
     title.textContent = 'Detail tidak tersedia';
@@ -171,7 +173,25 @@ async function openDetail(sel, { silent = false } = {}) {
 }
 
 async function boot(root) {
-    let configRes = await getJson(root.dataset.configUrl, null);
+    // The Area filter: the server preselects ?area=<slug>; otherwise the last choice of this browser.
+    const areaSelect = el('vme-area');
+    let area = areaSelect?.value || '';
+    if (!area && !new URLSearchParams(location.search).has('area')) {
+        try {
+            const saved = localStorage.getItem('vme.area') || '';
+            if (saved && [...(areaSelect?.options || [])].some((o) => o.value === saved)) { area = saved; areaSelect.value = saved; }
+        } catch { /* storage unavailable: no remembered choice */ }
+    }
+    const configUrl = () => withArea(root.dataset.configUrl, area);
+    const snapshotUrl = () => withArea(root.dataset.snapshotUrl, area);
+
+    let configRes = await getJson(configUrl(), null);
+    if (area && (configRes.status === 403 || configRes.status === 404)) {
+        // The remembered Area is gone or not allowed any more: fall back to every Area.
+        area = '';
+        if (areaSelect) areaSelect.value = '';
+        configRes = await getJson(configUrl(), null);
+    }
     if (configRes.status === 404) {
         showBanner('VME sedang dinonaktifkan.');
         el('vme-sync').textContent = 'VME OFF';
@@ -261,16 +281,16 @@ async function boot(root) {
     }
 
     async function refreshConfig() {
-        const r = await getJson(root.dataset.configUrl, configEtag);
+        const r = await getJson(configUrl(), configEtag);
         if (r.status === 200) {
             config = r.data;
             configEtag = r.etag;
-            world.setLayout(config.layout);
+            world.setLayout(config.layout); // resets the objects itself when the map's shape changed
         }
     }
 
     async function poll() {
-        const r = await getJson(root.dataset.snapshotUrl, snapEtag);
+        const r = await getJson(snapshotUrl(), snapEtag);
 
         if (r.status === 200) {
             snapEtag = r.etag;
@@ -313,6 +333,31 @@ async function boot(root) {
         if (!document.hidden) { clearTimeout(timer); poll(); }
     });
     setInterval(paintHud, 5000);
+
+    // Changing the Area filter shows the map of that Area: new layout, objects recreated in place.
+    areaSelect?.addEventListener('change', async () => {
+        area = areaSelect.value;
+        closeDetail();
+
+        const url = new URL(location.href);
+        if (area) url.searchParams.set('area', area); else url.searchParams.delete('area');
+        history.replaceState(null, '', url);
+        try { localStorage.setItem('vme.area', area); } catch { /* ignore */ }
+
+        clearTimeout(timer);
+        snapEtag = null;
+        const r = await getJson(configUrl(), null);
+        if (r.status === 200) {
+            config = r.data;
+            configEtag = r.etag;
+            world.setLayout(config.layout, { reset: true });
+            latest = null;
+            failures = 0;
+        } else {
+            showBanner('Tidak dapat menampilkan Area ini (' + (r.status === 403 ? 'tidak berwenang' : 'gagal dimuat') + ').');
+        }
+        poll();
+    });
 
     await poll();
 }

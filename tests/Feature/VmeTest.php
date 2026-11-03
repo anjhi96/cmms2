@@ -575,7 +575,7 @@ test('only ADMIN can manage VME', function () {
 // ── 10. Feature switches ──────────────────────────────────────────────────
 
 test('every VME switch is OFF by default and VME endpoints are 404', function () {
-    expect(VmeFeature::all())->toBe(['display' => false, 'activity_sync' => false, 'human_movement' => false]);
+    expect(VmeFeature::all())->toBe(['display' => false, 'activity_sync' => false, 'human_movement' => false, 'ai_characters' => false]);
 
     $admin = vmeAdmin();
     $this->actingAs($admin)->getJson('/vme/snapshot')->assertNotFound();
@@ -599,7 +599,7 @@ test('admin can toggle the switches from the Maintenance Intelligence Center', f
     $this->actingAs($admin)->put(route('maintenance-intelligence.vme.settings'), ['display' => 1, 'activity_sync' => 1])
         ->assertRedirect();
 
-    expect(VmeFeature::all())->toBe(['display' => true, 'activity_sync' => true, 'human_movement' => false]);
+    expect(VmeFeature::all())->toBe(['display' => true, 'activity_sync' => true, 'human_movement' => false, 'ai_characters' => false]);
 });
 
 test('activity sync OFF keeps VME up but every character idle', function () {

@@ -229,3 +229,56 @@ export function initialView({ world, viewport, workers = [] }) {
         cy: crowd.reduce((n, w) => n + w.y, 0) / crowd.length,
     };
 }
+
+/**
+ * Where an AI character spends its time: at its desk in the Office, and — at random times —
+ * walking to open spots INSIDE the zones it may visit (production Areas and the Workshop; a
+ * per-Area Koordinator only its own Area), usually returning to the desk afterwards.
+ *
+ * Pure: zones come from /vme/config, the desk, status and `visit_zones` from the snapshot, spots
+ * and timing from config. The random choices are made by CharacterMotion (stops marked `home` are
+ * desks, the rest are visit spots; dwell time is a random value between min and max, per stop),
+ * so characters never move in step.
+ *
+ * @param {{ desk: {x: number, y: number}, visit_zones?: string[]|null }} bot
+ * @param {{ zones: Array<{key: string, type: string, x: number, y: number, w: number, h: number}>, zoneTypes: string[], visitSpots: Record<string, number[][]>, wanderMin: number, wanderMax: number, index?: number }} opts
+ */
+export function aiPlan(bot, { zones, zoneTypes, visitSpots = {}, wanderMin = 3, wanderMax = 9, index = 0 }) {
+    const stand = { x: bot.desk.x, y: bot.desk.y + 12 };
+    // AI characters never do physical work: they stand (idle) and walk. Their status shows in the
+    // label colour and the panel, not in a work animation.
+    const stops = [{ x: stand.x, y: stand.y, zone: 'office', anim: 'idle', home: true }];
+
+    for (const z of zones) {
+        if (!zoneTypes.includes(z.type)) continue;
+        if (Array.isArray(bot.visit_zones) && !bot.visit_zones.includes(z.key)) continue;
+
+        for (const [fx, fy] of visitSpots[z.type] || []) {
+            stops.push({ x: Math.round(z.x + fx * z.w), y: Math.round(z.y + fy * z.h), zone: z.key, anim: 'idle' });
+        }
+    }
+
+    const min = Math.max(1, Number(wanderMin) || 3);
+    const max = Math.max(min, Number(wanderMax) || 9);
+
+    return {
+        kind: 'work',
+        seed: index,
+        x: stand.x,
+        y: stand.y,
+        zone: 'office',
+        anim: 'idle',
+        walkAnim: 'walk',
+        face: 'right',
+        patrol: stops.length > 1 ? stops : undefined,
+        patrolMode: 'random',
+        dwell: { min, max },
+        patrolSeconds: max, // fallback for anything that ignores `dwell`
+    };
+}
+
+/** A route URL with the map's Area filter (?area=<slug>); no slug = every Area. */
+export function withArea(url, slug) {
+    if (!slug) return url;
+    return url + (url.includes('?') ? '&' : '?') + 'area=' + encodeURIComponent(slug);
+}

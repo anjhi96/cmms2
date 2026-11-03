@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\MaintenanceIntelligence;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiCharacterRun;
 use App\Models\User;
 use App\Models\VmeCharacterProfile;
+use App\Services\Vme\Ai\AiCharacterRegistry;
 use App\Services\Vme\VmeFeature;
 use App\Services\Vme\VmeSnapshotService;
 use Illuminate\Http\RedirectResponse;
@@ -19,7 +21,7 @@ use Illuminate\View\View;
  */
 class VmeAdminController extends Controller
 {
-    public function index(VmeSnapshotService $snapshots): View
+    public function index(VmeSnapshotService $snapshots, AiCharacterRegistry $ai): View
     {
         return view('maintenance-intelligence.vme', [
             'killed' => VmeFeature::killed(),
@@ -30,6 +32,7 @@ class VmeAdminController extends Controller
             'profiles' => VmeCharacterProfile::query()->pluck('avatar_key', 'user_id'),
             'avatars' => config('vme.avatars'),
             'diagnostics' => $snapshots->diagnostics(),
+            'aiCharacters' => collect($ai->all())->map(fn (array $d, string $key) => $d + ['enabled' => VmeFeature::characterEnabled($key)])->all(),
         ]);
     }
 
@@ -37,6 +40,13 @@ class VmeAdminController extends Controller
     {
         foreach (VmeFeature::KEYS as $key) {
             VmeFeature::set($key, $request->boolean($key), $request->user()->id);
+        }
+
+        // Each AI character has its own switch (default ON); only keys that exist can be set.
+        if ($request->boolean('characters_submitted')) {
+            foreach (array_keys(app(AiCharacterRegistry::class)->all()) as $character) {
+                VmeFeature::setCharacter($character, $request->boolean('character_'.$character), $request->user()->id);
+            }
         }
 
         return back()->with('success', 'Pengaturan VME disimpan.');
@@ -54,5 +64,29 @@ class VmeAdminController extends Controller
         VmeSnapshotService::flush();
 
         return back()->with('success', 'Avatar '.$user->name.' disimpan.');
+    }
+
+    /** Everything the AI characters produced, newest first, filterable by character and date. */
+    public function aiRuns(Request $request, AiCharacterRegistry $ai): View
+    {
+        $data = $request->validate([
+            'character' => ['nullable', 'string', 'max:40'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
+
+        $runs = AiCharacterRun::query()
+            ->when($data['character'] ?? null, fn ($q, $c) => $q->where('character_key', $c))
+            ->when($data['from'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
+            ->when($data['to'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '<=', $d))
+            ->latest('id')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('maintenance-intelligence.vme-ai-runs', [
+            'runs' => $runs,
+            'characters' => collect($ai->all())->map(fn (array $d) => $d['name'])->all(),
+            'filters' => ['character' => $data['character'] ?? '', 'from' => $data['from'] ?? '', 'to' => $data['to'] ?? ''],
+        ]);
     }
 }

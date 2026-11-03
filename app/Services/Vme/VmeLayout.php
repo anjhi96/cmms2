@@ -5,6 +5,7 @@ namespace App\Services\Vme;
 use App\Models\Area;
 use App\Models\Group;
 use App\Models\Machine;
+use App\Services\Vme\Ai\AiCharacterRegistry;
 use Illuminate\Support\Collection;
 
 /**
@@ -18,6 +19,8 @@ use Illuminate\Support\Collection;
  */
 class VmeLayout
 {
+    private const DESK_COLUMNS = 4;
+
     /** @var array<string, mixed> */
     private array $cfg;
 
@@ -45,16 +48,23 @@ class VmeLayout
 
     private int $height;
 
-    public static function make(): self
+    /** AI characters that get a desk in the Office (drives the Office height). */
+    private int $deskCount = 0;
+
+    /**
+     * @param  int|null  $onlyAreaId  an Area filter: the map then shows only that Area next to Office and Workshop
+     */
+    public static function make(?int $onlyAreaId = null): self
     {
-        return new self;
+        return new self($onlyAreaId);
     }
 
-    public function __construct()
+    public function __construct(private readonly ?int $onlyAreaId = null)
     {
         $this->cfg = config('vme.layout');
 
-        $this->areas = Area::active()->orderBy('name')->get(['id', 'name']);
+        $this->areas = Area::active()->orderBy('name')->when($onlyAreaId, fn ($q, $id) => $q->whereKey($id))->get(['id', 'name']);
+        $this->deskCount = count(app(AiCharacterRegistry::class)->enabled($onlyAreaId));
         $areaIds = $this->areas->pluck('id');
         $this->groups = Group::query()->whereIn('area_id', $areaIds)->orderBy('name')->orderBy('id')->get(['id', 'name', 'area_id']);
 
@@ -86,18 +96,26 @@ class VmeLayout
 
     public function productionTop(): int
     {
-        return $this->cfg['margin'] + $this->cfg['office_height'] + $this->cfg['corridor_height'];
+        return $this->cfg['margin'] + $this->officeHeight() + $this->cfg['corridor_height'];
+    }
+
+    /** Office/Workshop height: the configured one, taller when the AI desks need more than one row. */
+    public function officeHeight(): int
+    {
+        $rows = max(1, (int) ceil($this->deskCount / self::DESK_COLUMNS));
+
+        return max($this->cfg['office_height'], 56 + $rows * 54 + 20);
     }
 
     public function spineY(): int
     {
-        return $this->cfg['margin'] + $this->cfg['office_height'] + intdiv($this->cfg['corridor_height'], 2);
+        return $this->cfg['margin'] + $this->officeHeight() + intdiv($this->cfg['corridor_height'], 2);
     }
 
     /** @return array{x: int, y: int, w: int, h: int} */
     public function officeRect(): array
     {
-        return ['x' => $this->cfg['margin'], 'y' => $this->cfg['margin'], 'w' => $this->cfg['office_width'], 'h' => $this->cfg['office_height']];
+        return ['x' => $this->cfg['margin'], 'y' => $this->cfg['margin'], 'w' => $this->cfg['office_width'], 'h' => $this->officeHeight()];
     }
 
     /** @return array{x: int, y: int, w: int, h: int} */
@@ -107,7 +125,7 @@ class VmeLayout
             'x' => $this->cfg['margin'] + $this->cfg['office_width'] + $this->cfg['zone_gap'],
             'y' => $this->cfg['margin'],
             'w' => $this->cfg['workshop_width'],
-            'h' => $this->cfg['office_height'],
+            'h' => $this->officeHeight(),
         ];
     }
 
@@ -316,6 +334,22 @@ class VmeLayout
         $shift = ($seed * 3) % count($points);
 
         return array_values(array_merge(array_slice($points, $shift), array_slice($points, 0, $shift)));
+    }
+
+    /**
+     * Desk of the nth AI character in the Office (rows of four along the back wall). The character stands at
+     * this point; the desk is drawn just behind it.
+     *
+     * @return array{x: int, y: int, zone: string}
+     */
+    public function aiDeskPoint(int $index): array
+    {
+        $office = $this->officeRect();
+
+        $col = $index % self::DESK_COLUMNS;
+        $row = intdiv($index, self::DESK_COLUMNS);
+
+        return ['x' => $office['x'] + 50 + $col * 85, 'y' => $office['y'] + 64 + $row * 54, 'zone' => 'office'];
     }
 
     /** Where a character stands when working at an object. */

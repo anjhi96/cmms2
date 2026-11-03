@@ -74,7 +74,7 @@
     ]
   },
   "resources/js/vme/main.js": {
-    "file": "assets/main-KuI-DSL8.js",
+    "file": "assets/main-CImqOWR8.js",
     "name": "main",
     "src": "resources/js/vme/main.js",
     "isEntry": true,
@@ -83,7 +83,7 @@
     ]
   },
   "resources/js/vme/world.js": {
-    "file": "assets/world-DQWfSWE1.js",
+    "file": "assets/world-HBaNauUc.js",
     "name": "world",
     "src": "resources/js/vme/world.js",
     "isDynamicEntry": true,

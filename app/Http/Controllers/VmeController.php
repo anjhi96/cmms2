@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Area;
 use App\Models\Machine;
 use App\Models\User;
+use App\Services\Vme\Ai\AiCharacterService;
+use App\Services\Vme\Ai\AiContext;
 use App\Services\Vme\VmeAccess;
 use App\Services\Vme\VmeDetailService;
 use App\Services\Vme\VmeFeature;
@@ -26,11 +29,19 @@ class VmeController extends Controller
     {
         $this->ensureEnabled($request);
 
+        $filter = $this->areaFilter($request, $request->user());
+        $allowed = VmeAccess::allowedAreaIds($request->user());
+
         return view('vme.index', [
+            // The Area filter at the top of the map: only Areas the viewer may see.
+            'areaOptions' => Area::active()->orderBy('name')->get(['id', 'name', 'slug'])
+                ->filter(fn (Area $a) => $allowed === null || in_array($a->id, $allowed, true))->values(),
+            'selectedArea' => $filter ? Area::find($filter)?->slug : null,
             'snapshotUrl' => route('vme.snapshot'),
             'configUrl' => route('vme.config'),
             'picUrl' => route('vme.pic', '__ID__'),
             'machineUrl' => route('vme.machine', '__ID__'),
+            'aiUrl' => route('vme.ai', '__ID__'),
         ]);
     }
 
@@ -38,7 +49,7 @@ class VmeController extends Controller
     {
         $user = $this->ensureEnabled($request);
 
-        $payload = $service->forViewer(VmeAccess::allowedAreaIds($user), $user->isAdmin());
+        $payload = $service->forViewer(VmeAccess::allowedAreaIds($user), $user->isAdmin(), $this->areaFilter($request, $user));
 
         return $this->respond($request, $payload, $payload['version']);
     }
@@ -52,8 +63,14 @@ class VmeController extends Controller
             'poll_seconds' => (int) config('vme.poll_seconds'),
             'stale_after_seconds' => (int) config('vme.stale_after_seconds'),
             'patrol_seconds' => (int) config('vme.patrol_seconds'),
-            'layout' => VmeLayout::make()->toArray(),
-            'avatars' => collect(config('vme.avatars'))->map(fn ($a) => collect($a)->except('label')->all())->all(),
+            'ai' => [
+                'wander_min_seconds' => (int) config('vme.ai.wander_min_seconds'),
+                'wander_max_seconds' => (int) config('vme.ai.wander_max_seconds'),
+                'wander_zone_types' => config('vme.ai.wander_zone_types'),
+                'visit_spots' => config('vme.ai.visit_spots'),
+            ],
+            'layout' => VmeLayout::make($this->areaFilter($request, $user))->toArray(),
+            'avatars' => collect(config('vme.avatars') + config('vme.ai_avatars', []))->map(fn ($a) => collect($a)->except('label')->all())->all(),
         ];
 
         return $this->respond($request, $payload, sha1(json_encode($payload)));
@@ -80,12 +97,62 @@ class VmeController extends Controller
         return $this->noStore(response()->json($details->machine($machine)));
     }
 
+    /**
+     * Panel of an AI character. Floor-wide summaries are for viewers who see every area; a viewer
+     * limited to some areas gets the character and its status only.
+     */
+    public function ai(Request $request, string $key, AiCharacterService $ai, VmeSnapshotService $snapshots): JsonResponse
+    {
+        $viewer = $this->ensureEnabled($request);
+
+        $detail = $ai->detail($key, function () use ($snapshots) {
+            $snapshot = $snapshots->cached();
+
+            return new AiContext(
+                pics: array_map(fn (array $p) => ['user_id' => $p['user_id'], 'status' => $p['status']], $snapshot['pics']),
+                activitySync: (bool) $snapshot['sync']['enabled'],
+                unmapped: (int) ($snapshot['sync']['unmapped_count'] ?? 0),
+            );
+        });
+
+        abort_if($detail === null, 404);
+
+        if (VmeAccess::allowedAreaIds($viewer) !== null) {
+            $detail = array_merge($detail, ['summary' => null, 'details' => [], 'restricted' => true]);
+        }
+
+        $detail['link'] = $viewer->isAdmin()
+            ? ['label' => 'Buka kumpulan hasil AI', 'url' => route('maintenance-intelligence.vme.ai-runs', ['character' => $key])]
+            : null;
+
+        return $this->noStore(response()->json($detail));
+    }
+
     /** null area (a PIC without area, a machine whose area is not on the map) is for unrestricted viewers only. */
     private function authorizeArea(User $viewer, ?int $areaId): void
     {
         $allowed = VmeAccess::allowedAreaIds($viewer);
 
         abort_unless($allowed === null || ($areaId !== null && in_array($areaId, $allowed, true)), 403, 'Unauthorized');
+    }
+
+    /**
+     * The Area chosen in the map's filter (?area=<slug>), or null for all. An unknown Area is 404;
+     * one outside the viewer's scope is 403, like every other VME read.
+     */
+    private function areaFilter(Request $request, User $viewer): ?int
+    {
+        $slug = trim((string) $request->query('area', ''));
+
+        if ($slug === '') {
+            return null;
+        }
+
+        $area = Area::active()->where('slug', $slug)->first();
+        abort_if($area === null, 404);
+        $this->authorizeArea($viewer, $area->id);
+
+        return $area->id;
     }
 
     private function noStore(JsonResponse $response): JsonResponse
