@@ -150,7 +150,7 @@
                             <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="schedules">
                         @foreach ($schedules as $pm)
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-3 text-slate-600">{{ $pm->plan_date ? \Carbon\Carbon::parse($pm->plan_date)->format('d-m-Y') : '-' }}</td>
@@ -190,7 +190,7 @@
         </div>
 
         {{-- ============ Mobile cards ============ --}}
-        <div class="space-y-3 md:hidden">
+        <div class="space-y-3 md:hidden" data-infinite-list="schedules">
             @foreach ($schedules as $pm)
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div class="mb-2 flex items-start justify-between gap-2">
@@ -247,7 +247,7 @@
         </div>
 
         <div class="mt-4">
-            {{ $schedules->links() }}
+            <x-infinite-scroll :paginator="$schedules" key="schedules" />
         </div>
     @endif
 

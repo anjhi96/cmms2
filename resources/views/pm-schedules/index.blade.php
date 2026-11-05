@@ -167,7 +167,7 @@
                             Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 bg-white">
+                <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="schedules">
                     @foreach ($schedules as $pm)
                         <tr class="hover:bg-slate-50">
                             <td class="px-4 py-3 text-slate-600">{{ $pm->area }}</td>
@@ -359,7 +359,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (di bawah md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="schedules">
         @foreach ($schedules as $pm)
             @php $role = auth()->user()->role; @endphp
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -522,7 +522,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $schedules->links() }}
+        <x-infinite-scroll :paginator="$schedules" key="schedules" />
     </div>
 
     <script>
@@ -548,31 +548,23 @@
         }
     </script>
     <script>
-        document.querySelectorAll('.assign-pic').forEach(function(select) {
+        // delegated: rows are appended later by infinite scroll
+        document.addEventListener('change', function(e) {
+            const select = e.target.closest('.assign-pic');
+            if (!select) return;
 
-            select.addEventListener('change', function() {
-
-                fetch(`/pm-schedules/${this.dataset.id}/assign-pic`, {
-
-                    method: 'POST',
-
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document
-                            .querySelector('meta[name="csrf-token"]')
-                            .content
-                    },
-
-                    body: JSON.stringify({
-
-                        pic: this.value
-
-                    })
-
-                });
-
+            fetch(`/pm-schedules/${select.dataset.id}/assign-pic`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document
+                        .querySelector('meta[name="csrf-token"]')
+                        .content
+                },
+                body: JSON.stringify({
+                    pic: select.value
+                })
             });
-
         });
     </script>
 

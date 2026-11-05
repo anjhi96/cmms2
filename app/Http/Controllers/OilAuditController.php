@@ -519,7 +519,7 @@ class OilAuditController extends Controller
         $audits = $machine->oilAudits()
             ->with('followUp.problems.findings')
             ->latest('audited_at')
-            ->paginate(15);
+            ->paginate(20);
 
         $latestAudit = $machine->latestOilAudit()->with('followUp.problems.findings')->first();
         $recentAudits = $machine->oilAudits()

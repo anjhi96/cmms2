@@ -52,14 +52,18 @@
                     <th class="px-4 py-3 text-center">Action</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody data-infinite-list="machines">
                 @forelse($machines as $machine)
                     <tr class="border-t">
                         <td class="px-4 py-3">{{ $machine->machine_number }}</td>
                         <td class="px-4 py-3">{{ $machine->machine_type }}</td>
                         <td class="px-4 py-3">{{ $machine->area }}</td>
                         <td class="px-4 py-3">
-                            {{ $machine->last_pm ? \Carbon\Carbon::parse($machine->last_pm)->format('d-m-Y') : '-' }}
+                            @php($shownLastPm = $machine->lastPmOverride?->override_date ?? ($machine->last_pm ? \Carbon\Carbon::parse($machine->last_pm) : null))
+                            {{ $shownLastPm ? $shownLastPm->format('d-m-Y') : '-' }}
+                            @if ($machine->lastPmOverride)
+                                <span class="ml-1 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">Manual Override</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-center">
                             <a href="{{ route('machine-history.show', ['machine_history' => $machine->machine_number, 'return_url' => request()->fullUrl()]) }}"
@@ -80,7 +84,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (di bawah md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="machines">
         @forelse($machines as $machine)
             <div class="rounded-xl border bg-white p-4 shadow-sm">
 
@@ -99,7 +103,11 @@
                     <div>
                         <div class="text-slate-400">Last PM</div>
                         <div class="font-medium text-slate-700">
-                            {{ $machine->last_pm ? \Carbon\Carbon::parse($machine->last_pm)->format('d-m-Y') : '-' }}
+                            @php($shownLastPm = $machine->lastPmOverride?->override_date ?? ($machine->last_pm ? \Carbon\Carbon::parse($machine->last_pm) : null))
+                            {{ $shownLastPm ? $shownLastPm->format('d-m-Y') : '-' }}
+                            @if ($machine->lastPmOverride)
+                                <span class="ml-1 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">Manual Override</span>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -119,7 +127,7 @@
     </div>
 
     <div class="mt-6">
-        {{ $machines->links() }}
+        <x-infinite-scroll :paginator="$machines" key="machines" />
     </div>
 
 @endsection

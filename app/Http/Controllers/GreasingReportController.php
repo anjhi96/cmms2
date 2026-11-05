@@ -93,7 +93,7 @@ class GreasingReportController extends Controller
             ->with('group')
             ->withCount('findings')
             ->orderBy('plan_date')
-            ->paginate(15, ['*'], 'greasing_page')
+            ->paginate(20, ['*'], 'greasing_page')
             ->withQueryString();
 
         // --- Finding Report (greasing_findings, same filtered scope) ---
@@ -137,7 +137,7 @@ class GreasingReportController extends Controller
         $findings = $findingQuery()
             ->with(['greasing.group', 'machine'])
             ->orderByDesc('id')
-            ->paginate(15, ['*'], 'finding_page')
+            ->paginate(20, ['*'], 'finding_page')
             ->withQueryString();
 
         // --- Year filter options (respect the same role/area visibility) ---

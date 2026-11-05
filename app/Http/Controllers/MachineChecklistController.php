@@ -36,6 +36,15 @@ class MachineChecklistController extends Controller
 
         }
 
+        // FILTER MAINTENANCE TYPE (check / clean / lubrication / replace)
+        $maintenanceTypes = ['check', 'clean', 'lubrication', 'replace'];
+
+        if ($request->filled('maintenance_type') && in_array($request->maintenance_type, $maintenanceTypes, true)) {
+
+            $query->where('maintenance_type', $request->maintenance_type);
+
+        }
+
         // SECTION OPTIONS (dependent on the selected machine type)
         $sectionOptions = MachineChecklist::select('machine_type', 'section', 'section_order')
             ->whereNotNull('section')
@@ -110,6 +119,7 @@ class MachineChecklistController extends Controller
             compact(
                 'checklists',
                 'machineTypes',
+                'maintenanceTypes',
                 'sections',
                 'sectionsByType',
                 'allSections'

@@ -54,7 +54,7 @@
                     <th class="px-4 py-3">Referensi</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
+            <tbody class="divide-y divide-slate-100" data-infinite-list="runs">
                 @forelse ($runs as $run)
                     <tr class="align-top">
                         <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ $run->created_at?->format('d-m-Y H:i:s') }}</td>
@@ -80,6 +80,6 @@
         </table>
     </section>
 
-    <div>{{ $runs->links() }}</div>
+    <div><x-infinite-scroll :paginator="$runs" key="runs" /></div>
 </div>
 @endsection

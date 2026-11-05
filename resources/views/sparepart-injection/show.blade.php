@@ -47,7 +47,7 @@
                         @endforeach
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-100" data-infinite-list="rows">
                     @forelse ($rows as $row)
                         <tr class="hover:bg-slate-50">
                             <td class="px-3 py-3 text-sm text-slate-500">{{ $row->row_number }}</td>
@@ -69,5 +69,5 @@
         </div>
     </div>
 
-    <div class="mt-4">{{ $rows->links() }}</div>
+    <div class="mt-4"><x-infinite-scroll :paginator="$rows" key="rows" /></div>
 @endsection

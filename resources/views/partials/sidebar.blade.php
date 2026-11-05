@@ -72,6 +72,7 @@ document.addEventListener('alpine:init', () => {
 
         $machineActive = request()->routeIs('machines.*');
         $groupActive = request()->routeIs('groups.*');
+        $machineQrActive = request()->routeIs('machine-qr.*');
         $sparepartActive = request()->routeIs('spareparts.*', 'sparepart-injection.*');
         $sparepartPlanningActive = request()->routeIs('sparepart-planning.*');
         $reportActive = request()->routeIs('reports.*') || $cameFromReportPm || $cameFromReportMachine;
@@ -114,7 +115,7 @@ document.addEventListener('alpine:init', () => {
         @endphp
         <nav class="flex-1 overflow-y-auto px-3 py-4 text-sm" x-data="{
             openGroup: '{{ $dashboardActive || $todayActivityActive || $pmScheduleActive || $oilAuditActive || $oilAuditActionActive || $greasingActive ? 'main' :
-                        ($machineActive || $groupActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive ? 'master' :
+                        ($machineActive || $machineQrActive || $groupActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive ? 'master' :
                         ($machineHistoryActive || $reportActive ? 'report' : 'system')) }}',
             openSubmenu: '{{ $reportActive ? 'reports' : '' }}'
         }">
@@ -309,6 +310,27 @@ document.addEventListener('alpine:init', () => {
             <rect x="9" y="9" width="6" height="6" />',
             'visible' =>
             $isAdmin || $isKoordinator || $isSupervisor,
+            ],
+            [
+            'route' => route('machine-qr.index'),
+            'label' => 'Machine QR',
+            'active' => $machineQrActive,
+            // qr-code
+            'icon' => '
+            <rect width="5" height="5" x="3" y="3" rx="1" />
+            <rect width="5" height="5" x="16" y="3" rx="1" />
+            <rect width="5" height="5" x="3" y="16" rx="1" />
+            <path d="M21 16h-3a2 2 0 0 0-2 2v3" />
+            <path d="M21 21v.01" />
+            <path d="M12 7v3a2 2 0 0 1-2 2H7" />
+            <path d="M3 12h.01" />
+            <path d="M12 3h.01" />
+            <path d="M12 16v.01" />
+            <path d="M16 12h1" />
+            <path d="M21 12v.01" />
+            <path d="M12 21v-1" />',
+            'visible' =>
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('groups.index'),

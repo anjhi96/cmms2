@@ -49,3 +49,24 @@ test('a section from another machine type is ignored', function () {
 
     expect($response->viewData('checklists')->total())->toBe(2);
 });
+
+test('maintenance type filter limits rows and combines with other filters', function () {
+    MachineChecklist::create([
+        'machine_type' => 'MILL', 'section' => 'MOTOR', 'section_order' => 1,
+        'checklist_item' => 'mill lube item', 'item_order' => 2, 'maintenance_type' => 'lubrication',
+    ]);
+    MachineChecklist::create([
+        'machine_type' => 'CRUSHER', 'section' => 'MOTOR', 'section_order' => 2,
+        'checklist_item' => 'crusher lube item', 'item_order' => 2, 'maintenance_type' => 'lubrication',
+    ]);
+
+    $items = fn ($r) => $r->viewData('checklists')->pluck('checklist_item')->sort()->values()->all();
+
+    expect($items($this->get(route('machine-checklists.index', ['maintenance_type' => 'lubrication']))))
+        ->toEqual(['crusher lube item', 'mill lube item']);
+    expect($items($this->get(route('machine-checklists.index', ['maintenance_type' => 'lubrication', 'machine_type' => 'MILL']))))
+        ->toEqual(['mill lube item']);
+    // unknown value is ignored rather than erroring / emptying the list
+    expect($this->get(route('machine-checklists.index', ['maintenance_type' => 'bogus']))->viewData('checklists')->total())->toBe(7);
+    $this->get(route('machine-checklists.index', ['maintenance_type' => 'lubrication']))->assertSee('All Maintenance Type');
+});

@@ -214,7 +214,7 @@
                             <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="machines">
                         @foreach ($machines as $machine)
                             @php
                                 $audit = $machine->latestOilAudit;
@@ -260,7 +260,7 @@
         </div>
 
         {{-- ============ Mobile cards ============ --}}
-        <div class="space-y-3 md:hidden">
+        <div class="space-y-3 md:hidden" data-infinite-list="machines">
             @foreach ($machines as $machine)
                 @php
                     $audit = $machine->latestOilAudit;
@@ -317,7 +317,7 @@
         </div>
 
         <div class="mt-4">
-            {{ $machines->links() }}
+            <x-infinite-scroll :paginator="$machines" key="machines" />
         </div>
     @endif
 

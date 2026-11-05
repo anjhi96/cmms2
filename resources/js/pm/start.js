@@ -88,8 +88,12 @@ function initPmStartModal() {
         modal.classList.remove('flex');
     }
 
-    document.querySelectorAll('.pm-start-btn').forEach((btn) => {
-        btn.addEventListener('click', () => openModal(btn));
+    // delegated: rows are appended later by infinite scroll
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest?.('.pm-start-btn');
+        if (btn) {
+            openModal(btn);
+        }
     });
 
     document.getElementById('pm-start-cancel').addEventListener('click', closeModal);
@@ -161,6 +165,11 @@ function initPmStartModal() {
     });
 
     restoreOfflineStartedButtons();
+
+    // rows appended by infinite scroll may need the offline "started" overlay too
+    document.addEventListener('infinite-scroll:appended', () => {
+        restoreOfflineStartedButtons();
+    });
 }
 
 if (document.readyState === 'loading') {

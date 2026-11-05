@@ -25,7 +25,7 @@ class MachineHistoryController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Machine::query();
+        $query = Machine::query()->with('lastPmOverride');
 
         // SEARCH — order_number lives on the related pm_schedules rows, not
         // on the machine itself, so it's matched via whereHas: typing a PM
@@ -102,7 +102,7 @@ class MachineHistoryController extends Controller
             ->whereNotNull('actual_date')
             ->with('workSessions')
             ->latest('actual_date')
-            ->paginate(10);
+            ->paginate(20);
 
         $lastPmRecord = $pmHistories->first();
 
@@ -139,6 +139,10 @@ class MachineHistoryController extends Controller
                 'machine' => $machine,
                 'pmHistories' => $pmHistories,
                 'lastPm' => $lastPm,
+                // Display-only Manual Override of Last PM (see
+                // MachineLastPmService). $nextPm above was already computed
+                // from the real PM transaction and is deliberately unaffected.
+                'lastPmOverride' => $machine->lastPmOverride,
                 'nextPm' => $nextPm,
                 'hideSidebar' => ! Auth::check(),
                 'hideTopbar' => ! Auth::check(),

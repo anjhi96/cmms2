@@ -142,7 +142,7 @@
                             <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="audits">
                         @foreach ($audits as $audit)
                             @php($colors = $audit->conditionColor())
                             <tr class="hover:bg-slate-50">
@@ -213,7 +213,10 @@
             </div>
         </div>
 
-        <div class="mt-5 hidden md:block">{{ $audits->links() }}</div>
+        {{-- Desktop: shared infinite scroll (js/infinite-scroll.js). Mobile keeps its own
+             loader above (oil-audits/action.js); each sentinel is display:none on the
+             other breakpoint, so only the visible one ever loads. --}}
+        <div class="mt-5 hidden md:block"><x-infinite-scroll :paginator="$audits" key="audits" /></div>
     @endif
 
     @if ($promptStart ?? false)

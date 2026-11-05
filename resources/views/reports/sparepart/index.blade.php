@@ -157,7 +157,7 @@
                             <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Total Cost</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="usages">
                         @foreach ($usages as $row)
                             @php $lineTotal = ($row->qty ?? 0) * ($row->price ?? 0); @endphp
                             <tr class="hover:bg-slate-50">
@@ -179,7 +179,7 @@
         </div>
 
         {{-- ============ Mobile cards ============ --}}
-        <div class="space-y-3 md:hidden">
+        <div class="space-y-3 md:hidden" data-infinite-list="usages">
             @foreach ($usages as $row)
                 @php $lineTotal = ($row->qty ?? 0) * ($row->price ?? 0); @endphp
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -219,7 +219,7 @@
         </div>
 
         <div class="mt-4">
-            {{ $usages->links() }}
+            <x-infinite-scroll :paginator="$usages" key="usages" />
         </div>
     @endif
 

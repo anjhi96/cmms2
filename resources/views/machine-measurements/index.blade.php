@@ -167,7 +167,7 @@
 
                 </thead>
 
-                <tbody>
+                <tbody data-infinite-list="measurements">
 
                     @forelse($measurements as $measurement)
                         <tr class="border-t">
@@ -237,7 +237,7 @@
         </div>
 
         {{-- ============ MOBILE: Card List (below md) ============ --}}
-        <div class="space-y-3 md:hidden">
+        <div class="space-y-3 md:hidden" data-infinite-list="measurements">
             @forelse($measurements as $measurement)
                 <div class="rounded-lg border bg-white p-4 shadow-sm">
                     <div class="text-sm font-semibold text-gray-800">{{ $measurement->machine_type }}</div>
@@ -277,7 +277,7 @@
         </div>
 
         <div class="mt-4">
-            {{ $measurements->appends(request()->query())->links() }}
+            <x-infinite-scroll :paginator="$measurements" key="measurements" />
         </div>
 
     </div>

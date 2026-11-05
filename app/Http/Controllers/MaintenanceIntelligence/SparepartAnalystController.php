@@ -90,7 +90,7 @@ class SparepartAnalystController extends Controller
                 'likely_items' => (clone $results())->where('level', 'LIKELY')->count(),
                 'machines_with_forecast' => (clone $results())->distinct('machine_id')->count('machine_id'),
             ],
-            'forecast' => $results()->orderBy('machine_number')->orderByDesc('expected_qty')->paginate(40, ['*'], 'fpage')->withQueryString(),
+            'forecast' => $results()->orderBy('machine_number')->orderByDesc('expected_qty')->paginate(20, ['*'], 'fpage')->withQueryString(),
             'insufficient' => (clone $machines)->where('status', 'INSUFFICIENT_DATA')->orderBy('machine_number')->paginate(20, ['*'], 'ipage')->withQueryString(),
             'bySparepart' => $results()
                 ->select('sparepart_id', 'material_number', 'description', 'unit')

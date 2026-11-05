@@ -44,7 +44,7 @@
                         @endforeach
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-100" data-infinite-list="imports">
                     @forelse ($imports as $import)
                         <tr class="hover:bg-slate-50">
                             <td class="whitespace-nowrap px-3 py-3 text-sm">{{ $import->created_at->format('d M Y H:i') }}</td>
@@ -65,5 +65,5 @@
         </div>
     </div>
 
-    <div class="mt-4">{{ $imports->links() }}</div>
+    <div class="mt-4"><x-infinite-scroll :paginator="$imports" key="imports" /></div>
 @endsection

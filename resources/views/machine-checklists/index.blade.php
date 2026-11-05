@@ -161,6 +161,21 @@
 
             </select>
 
+            <!-- MAINTENANCE TYPE -->
+            <select name="maintenance_type" class="border rounded px-3 py-2">
+
+                <option value="">All Maintenance Type</option>
+
+                @foreach ($maintenanceTypes as $type)
+                    <option value="{{ $type }}" {{ request('maintenance_type') == $type ? 'selected' : '' }}>
+
+                        {{ \Illuminate\Support\Str::title($type) }}
+
+                    </option>
+                @endforeach
+
+            </select>
+
             <button class="bg-blue-600 hover:bg-blue-700 text-white px-5 rounded">
 
                 Filter
@@ -219,7 +234,7 @@
 
                 </thead>
 
-                <tbody>
+                <tbody data-infinite-list="checklists">
 
                     @forelse($checklists as $checklist)
                         <tr class="border-t hover:bg-gray-50">
@@ -301,7 +316,7 @@
         </div>
 
         {{-- ============ MOBILE: Card List (below md) ============ --}}
-        <div class="space-y-3 md:hidden">
+        <div class="space-y-3 md:hidden" data-infinite-list="checklists">
             @forelse($checklists as $checklist)
                 <div class="rounded-lg border bg-white p-4 shadow-sm">
                     <div class="text-sm font-semibold text-gray-800">{{ $checklist->machine_type }}</div>
@@ -348,7 +363,7 @@
 
         <div class="mt-5">
 
-            {{ $checklists->withQueryString()->links() }}
+            <x-infinite-scroll :paginator="$checklists" key="checklists" />
 
         </div>
 

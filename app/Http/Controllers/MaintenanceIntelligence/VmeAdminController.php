@@ -80,7 +80,7 @@ class VmeAdminController extends Controller
             ->when($data['from'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
             ->when($data['to'] ?? null, fn ($q, $d) => $q->whereDate('created_at', '<=', $d))
             ->latest('id')
-            ->paginate(25)
+            ->paginate(20)
             ->withQueryString();
 
         return view('maintenance-intelligence.vme-ai-runs', [

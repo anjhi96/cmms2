@@ -160,7 +160,7 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">PIC</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="problems">
                         @foreach ($problems as $row)
                             @php
                                 $severityColor = match ($row->severity) {
@@ -192,7 +192,7 @@
         </div>
 
         {{-- ============ Mobile cards ============ --}}
-        <div class="space-y-3 md:hidden">
+        <div class="space-y-3 md:hidden" data-infinite-list="problems">
             @foreach ($problems as $row)
                 @php
                     $severityColor = match ($row->severity) {
@@ -236,7 +236,7 @@
         </div>
 
         <div class="mt-4">
-            {{ $problems->links() }}
+            <x-infinite-scroll :paginator="$problems" key="problems" />
         </div>
     @endif
 

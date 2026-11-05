@@ -118,7 +118,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 bg-white">
+            <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="machines">
                 @forelse($machines as $m)
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 text-sm text-slate-700">{{ $m->area }}</td>
@@ -159,7 +159,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (below md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="machines">
         @forelse($machines as $m)
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="mb-3 flex items-start justify-between gap-2">
@@ -199,7 +199,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $machines->links() }}
+        <x-infinite-scroll :paginator="$machines" key="machines" />
     </div>
 
     <script>

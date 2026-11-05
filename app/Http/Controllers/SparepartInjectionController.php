@@ -26,7 +26,7 @@ class SparepartInjectionController extends Controller
                 ->visibleTo($user)
                 ->with('user:id,name')
                 ->latest('id')
-                ->paginate(15),
+                ->paginate(20),
             'canImport' => $this->canImport($user),
         ]);
     }
@@ -43,7 +43,7 @@ class SparepartInjectionController extends Controller
             'rows' => $import->rows()
                 ->when($status, fn ($q) => $q->where('status', $status))
                 ->orderBy('row_number')
-                ->paginate(50)
+                ->paginate(20)
                 ->withQueryString(),
             'status' => $status,
         ]);

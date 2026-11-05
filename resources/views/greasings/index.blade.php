@@ -113,7 +113,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 bg-white">
+            <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="greasings">
                 @forelse ($greasings as $greasing)
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 text-sm text-slate-700">{{ $greasing->order_number ?? '-' }}</td>
@@ -205,7 +205,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (below md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="greasings">
         @forelse ($greasings as $greasing)
             @php($area = $greasing->group?->area?->name)
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -301,7 +301,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $greasings->links() }}
+        <x-infinite-scroll :paginator="$greasings" key="greasings" />
     </div>
 
     <script>
@@ -312,18 +312,19 @@
     </script>
 
     <script>
-        document.querySelectorAll('.assign-pic').forEach(function (select) {
-            select.addEventListener('change', function () {
-                fetch(`/greasings/${this.dataset.id}/assign-pic`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: JSON.stringify({
-                        pic: this.value,
-                    }),
-                });
+        // delegated: rows are appended later by infinite scroll
+        document.addEventListener('change', function (e) {
+            const select = e.target.closest('.assign-pic');
+            if (!select) return;
+            fetch(`/greasings/${select.dataset.id}/assign-pic`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({
+                    pic: select.value,
+                }),
             });
         });
     </script>
@@ -381,10 +382,10 @@
                 modal.classList.remove('flex');
             }
 
-            document.querySelectorAll('.greasing-start-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    openModal(this.dataset.id, this.dataset.group);
-                });
+            // delegated: rows are appended later by infinite scroll
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('.greasing-start-btn');
+                if (btn) openModal(btn.dataset.id, btn.dataset.group);
             });
 
             document.getElementById('greasing-start-cancel').addEventListener('click', closeModal);

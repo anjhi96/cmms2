@@ -17,6 +17,7 @@ use App\Http\Controllers\MachineMaintenanceRequirementController;
 use App\Http\Controllers\MachineMeasurementController;
 use App\Http\Controllers\MachineProblemController;
 use App\Http\Controllers\MachineProblemFindingController;
+use App\Http\Controllers\MachineQrController;
 use App\Http\Controllers\MachineReportController;
 use App\Http\Controllers\OilAuditController;
 use App\Http\Controllers\OilAuditReportController;
@@ -167,6 +168,22 @@ Route::middleware([
 
     Route::resource('machine-maintenance-requirements', MachineMaintenanceRequirementController::class)
         ->except(['show']);
+});
+
+// Machine QR Management (Master): QR Code Management + Last PM Override.
+// ADMIN / KOORDINATOR only — SUPERVISOR is deliberately NOT in this group.
+// Area scoping is enforced inside MachineQrController on every endpoint.
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR'])->prefix('machine-qr')->name('machine-qr.')->group(function () {
+    Route::get('/', [MachineQrController::class, 'index'])->name('index');
+    Route::get('/ids', [MachineQrController::class, 'ids'])->name('ids');
+    Route::get('/machines', [MachineQrController::class, 'machines'])->name('machines');
+    Route::get('/count', [MachineQrController::class, 'count'])->name('count');
+    Route::post('/export', [MachineQrController::class, 'export'])->name('export');
+    Route::get('/{machine}/preview', [MachineQrController::class, 'preview'])->name('preview')->whereNumber('machine');
+    Route::get('/{machine}/download', [MachineQrController::class, 'download'])->name('download')->whereNumber('machine');
+    Route::post('/overrides', [MachineQrController::class, 'storeOverride'])->name('overrides.store');
+    Route::delete('/overrides/{machine}', [MachineQrController::class, 'resetOverride'])->name('overrides.reset')->whereNumber('machine');
+    Route::get('/overrides/{machine}/history', [MachineQrController::class, 'history'])->name('overrides.history')->whereNumber('machine');
 });
 
 Route::middleware([

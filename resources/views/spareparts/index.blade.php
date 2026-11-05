@@ -105,7 +105,7 @@
                     @endif
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 bg-white">
+            <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="spareparts">
                 @forelse($spareparts as $sparepart)
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 text-sm text-slate-700">{{ $sparepart->material_number }}</td>
@@ -153,7 +153,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (below md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="spareparts">
         @forelse ($spareparts as $sparepart)
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="mb-3 flex items-start justify-between gap-2">
@@ -216,7 +216,7 @@
     </div>
 
     <div class="mt-4">
-        {{ $spareparts->appends(request()->query())->links() }}
+        <x-infinite-scroll :paginator="$spareparts" key="spareparts" />
     </div>
 
     <script>

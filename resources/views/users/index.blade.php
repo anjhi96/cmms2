@@ -37,7 +37,7 @@
 
             </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100 bg-white">
+        <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="users">
             @foreach($users as $user)
             <tr class="hover:bg-slate-50">
                 <td class="px-4 py-3">
@@ -108,7 +108,7 @@
 </div>
 
 {{-- ============ MOBILE: Card List (below md) ============ --}}
-<div class="space-y-3 md:hidden">
+<div class="space-y-3 md:hidden" data-infinite-list="users">
     @forelse ($users as $user)
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div class="flex items-start justify-between gap-3">
@@ -168,6 +168,6 @@
 </div>
 
 <div class="mt-4">
-    {{ $users->links() }}
+    <x-infinite-scroll :paginator="$users" key="users" />
 </div>
 @endsection

@@ -85,7 +85,7 @@
             <p class="mt-1 text-sm text-slate-500">Setiap kondisi yang perlu action ditampilkan jelas agar tidak terlewat.</p>
         </div>
 
-        <div class="relative ml-3 border-l border-slate-200 pl-7 sm:ml-4">
+        <div class="relative ml-3 border-l border-slate-200 pl-7 sm:ml-4" data-infinite-list="audits">
             @forelse ($audits as $audit)
                 @php($colors = $audit->conditionColor())
                 <article class="relative mb-4">
@@ -188,7 +188,7 @@
             @endforelse
         </div>
 
-        <div class="mt-5">{{ $audits->links() }}</div>
+        <div class="mt-5"><x-infinite-scroll :paginator="$audits" key="audits" /></div>
     </section>
 
     @include('oil-audits.partials.follow-up-scripts')

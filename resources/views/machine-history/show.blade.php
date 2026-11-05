@@ -71,8 +71,11 @@
         <div class="rounded-xl border bg-orange-100 p-4 shadow-sm">
             <div class="text-xs text-slate-500">Last PM</div>
             <div class="mt-1 text-lg font-semibold">
-                {{ $lastPm ? $lastPm->format('d-m-Y') : '-' }}
+                {{ $lastPmOverride ? $lastPmOverride->override_date->format('d-m-Y') : ($lastPm ? $lastPm->format('d-m-Y') : '-') }}
             </div>
+            @if ($lastPmOverride)
+                <span class="mt-1 inline-block rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">Manual Override</span>
+            @endif
         </div>
 
         <div class="rounded-xl border bg-green-100 p-4 shadow-sm">
@@ -106,7 +109,7 @@
                     <th class="px-4 py-3 text-left">Action</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody data-infinite-list="pmHistories">
                 @forelse ($pmHistories as $pm)
                     <tr class="border-t">
                         <td class="px-4 py-3">
@@ -175,7 +178,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (di bawah md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="pmHistories">
         @forelse($pmHistories as $pm)
             <div class="rounded-xl border bg-white p-4 shadow-sm">
 
@@ -253,7 +256,7 @@
         </div>
 
         <div class="mt-6">
-            {{ $pmHistories->links() }}
+            <x-infinite-scroll :paginator="$pmHistories" key="pmHistories" />
         </div>
 
     @endsection

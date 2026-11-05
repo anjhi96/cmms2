@@ -128,7 +128,7 @@
                     <thead><tr>
                         @foreach (['Mesin', 'Tipe', 'Sparepart', 'Dipakai', 'Avg qty', 'Prob.', 'PM', 'Estimasi', 'Rekomendasi', 'Level', 'Conf.', 'Dasar'] as $h)<th class="{{ $th }}">{{ $h }}</th>@endforeach
                     </tr></thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100" data-infinite-list="forecast">
                     @forelse ($forecast as $r)
                         <tr>
                             <td class="{{ $td }} whitespace-nowrap font-medium">{{ $r->machine_number }}</td>
@@ -151,14 +151,14 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-3">{{ $forecast->fragment('machine')->links() }}</div>
+            <div class="mt-3"><x-infinite-scroll :paginator="$forecast" key="forecast" /></div>
 
             <h3 class="mt-6 text-sm font-semibold text-slate-700">Mesin dengan Insufficient Historical Data</h3>
             <p class="text-xs text-slate-500">Tidak diberi angka prediksi dan tidak digantikan oleh Mandatory Sparepart maupun Injection.</p>
             <div class="mt-2 overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead><tr>@foreach (['Mesin', 'Tipe', 'Area', 'PM selesai', 'PM ada pencatatan', 'PM dikecualikan', 'Keterangan'] as $h)<th class="{{ $th }}">{{ $h }}</th>@endforeach</tr></thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100" data-infinite-list="insufficient">
                     @forelse ($insufficient as $m)
                         <tr>
                             <td class="{{ $td }} font-medium">{{ $m->machine_number }}</td><td class="{{ $td }}">{{ $m->machine_type }}</td><td class="{{ $td }}">{{ $m->area }}</td>
@@ -171,7 +171,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-3">{{ $insufficient->fragment('machine')->links() }}</div>
+            <div class="mt-3"><x-infinite-scroll :paginator="$insufficient" key="insufficient" /></div>
         </section>
 
         {{-- 3. Sparepart demand --}}

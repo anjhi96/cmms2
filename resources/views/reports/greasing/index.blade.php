@@ -223,7 +223,7 @@
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Finding</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="greasings">
                         @forelse ($greasings as $greasing)
                             <tr class="hover:bg-slate-50">
                                 <td class="px-3 py-2 text-sm text-slate-700">{{ $greasing->action_date ? $greasing->action_date->format('d M Y') : '-' }}</td>
@@ -258,7 +258,7 @@
             </div>
 
             {{-- ============ MOBILE: Card List (below md) ============ --}}
-            <div class="space-y-3 p-3 md:hidden">
+            <div class="space-y-3 p-3 md:hidden" data-infinite-list="greasings">
                 @forelse ($greasings as $greasing)
                     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                         <div class="mb-3 flex items-start justify-between gap-2">
@@ -303,7 +303,7 @@
             </div>
 
             <div class="border-t border-slate-100 p-3">
-                {{ $greasings->links() }}
+                <x-infinite-scroll :paginator="$greasings" key="greasings" />
             </div>
         </div>
 
@@ -350,7 +350,7 @@
                             <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Action Date</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="findings">
                         @forelse ($findings as $finding)
                             <tr class="align-top hover:bg-slate-50">
                                 <td class="px-3 py-2 text-sm font-semibold text-slate-800">{{ $finding->machine?->machine_number ?? '-' }}</td>
@@ -379,7 +379,7 @@
                 </table>
             </div>
             <div class="border-t border-slate-100 p-3">
-                {{ $findings->links() }}
+                <x-infinite-scroll :paginator="$findings" key="findings" />
             </div>
         </div>
     </div>

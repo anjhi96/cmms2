@@ -50,7 +50,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 bg-white">
+            <tbody class="divide-y divide-slate-100 bg-white" data-infinite-list="groups">
                 @forelse ($groups as $group)
                     <tr class="hover:bg-slate-50">
                         <td class="px-4 py-3 text-sm font-semibold text-slate-800">{{ $group->name }}</td>
@@ -87,7 +87,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (below md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="groups">
         @forelse ($groups as $group)
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div class="flex items-start justify-between gap-2">
@@ -121,6 +121,6 @@
     </div>
 
     <div class="mt-4">
-        {{ $groups->links() }}
+        <x-infinite-scroll :paginator="$groups" key="groups" />
     </div>
 @endsection

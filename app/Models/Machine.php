@@ -51,6 +51,11 @@ class Machine extends Model
         return $this->hasMany(PMSchedule::class);
     }
 
+    public function lastPmOverride(): HasOne
+    {
+        return $this->hasOne(MachineLastPmOverride::class);
+    }
+
     public function latestOilAudit(): HasOne
     {
         return $this->hasOne(OilAudit::class)->latestOfMany('audited_at');

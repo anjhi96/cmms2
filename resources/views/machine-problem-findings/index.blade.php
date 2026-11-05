@@ -161,7 +161,7 @@
 
             </thead>
 
-            <tbody>
+            <tbody data-infinite-list="findings">
 
                 @forelse($findings as $finding)
                     <tr class="border-t">
@@ -232,7 +232,7 @@
     </div>
 
     {{-- ============ MOBILE: Card List (below md) ============ --}}
-    <div class="space-y-3 md:hidden">
+    <div class="space-y-3 md:hidden" data-infinite-list="findings">
         @forelse($findings as $finding)
             <div class="rounded border bg-white p-4 shadow-sm">
                 <div class="text-xs text-gray-400">Category</div>
@@ -265,7 +265,7 @@
 
     <div class="mt-4">
 
-        {{ $findings->links() }}
+        <x-infinite-scroll :paginator="$findings" key="findings" />
 
     </div>
 
