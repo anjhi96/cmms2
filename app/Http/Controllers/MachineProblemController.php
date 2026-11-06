@@ -62,48 +62,70 @@ class MachineProblemController extends Controller
     public function create()
     {
         $machines = Machine::select('machine_type')
-        ->distinct()
-        ->orderBy('machine_type')
-        ->get();
+            ->whereNotNull('machine_type')
+            ->where('machine_type', '!=', '')
+            ->distinct()
+            ->orderBy('machine_type')
+            ->get();
 
-        return view('machine-problems.create', compact('machines'));
+        $categories = $this->categoryOptions();
+
+        return view('machine-problems.create', compact('machines', 'categories'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'machine_type' => 'required',
-            'problems' => 'required|array',
-            'problems.*' => 'required|string'
+            'category' => 'required|string|max:255',
+            'problem' => 'required|string|max:255',
         ], [
             'machine_type.required' => 'Machine type must be selected',
-            'problems.required' => 'At least one problem is required',
         ]);
 
-        foreach ($request->problems as $problem) {
+        $problem = trim($request->problem);
+        $category = trim($request->category);
 
-            if (blank($problem)) {
-                continue;
-            }
-
-            // 🔥 ANTI DUPLICATE CHECK
-            $exists = MachineProblem::where('machine_type', $request->machine_type)
-            ->where('problem', trim($problem))
+        $exists = MachineProblem::where('machine_type', $request->machine_type)
+            ->where('problem', $problem)
             ->exists();
 
-            if ($exists) {
-                continue; // skip duplicate
-            }
+        if ($exists) {
+            return back()
+                ->withInput()
+                ->with('error', 'Problem already exists for this machine type.');
+        }
 
-            MachineProblem::create([
-                'machine_type' => $request->machine_type,
-                'problem' => $problem
-            ]);
+        MachineProblem::create([
+            'machine_type' => $request->machine_type,
+            'category' => $category,
+            'problem' => $problem,
+        ]);
+
+        // "Save & add another" keeps the machine type and category so several
+        // problems can be typed in one sitting.
+        if ($request->boolean('add_another')) {
+            return redirect()
+                ->route('machine-problems.create', [
+                    'machine_type' => $request->machine_type,
+                    'category' => $category,
+                ])
+                ->with('success', 'Problem saved. Add the next one.');
         }
 
         return redirect()
             ->route('machine-problems.index')
-            ->with('success', 'Problems saved successfully');
+            ->with('success', 'Problem saved successfully');
+    }
+
+    private function categoryOptions()
+    {
+        return MachineProblem::select('category')
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
     }
 
     public function edit(MachineProblem $machineProblem)
@@ -113,9 +135,11 @@ class MachineProblemController extends Controller
             ->orderBy('machine_type')
             ->get();
 
+        $categories = $this->categoryOptions();
+
         return view(
             'machine-problems.edit',
-            compact('machineProblem', 'machines')
+            compact('machineProblem', 'machines', 'categories')
         );
     }
 
@@ -123,7 +147,8 @@ class MachineProblemController extends Controller
     {
         $request->validate([
             'machine_type' => 'required',
-            'problem'      => 'required'
+            'category'     => 'required|string|max:255',
+            'problem'      => 'required|string|max:255',
         ]);
 
         // cek duplicate selain data yang sedang diedit
@@ -146,6 +171,7 @@ class MachineProblemController extends Controller
 
         $machineProblem->update([
             'machine_type' => $request->machine_type,
+            'category'     => trim($request->category),
             'problem'      => trim($request->problem),
         ]);
 

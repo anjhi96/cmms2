@@ -134,9 +134,11 @@ class MachineProblemFindingController extends Controller
     public function create()
     {
         $categories = MachineProblem::select('category')
-        ->distinct()
-        ->orderBy('category')
-        ->pluck('category');
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
 
         return view(
             'machine-problem-findings.create',
@@ -150,14 +152,35 @@ class MachineProblemFindingController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-
-            'category' => 'required',
-
-            'finding' => 'required',
-
+            'category' => 'required|string|max:255',
+            'finding' => 'required|string|max:255',
         ]);
 
-        MachineProblemFinding::create($request->all());
+        $category = trim($request->category);
+        $finding = trim($request->finding);
+
+        $exists = MachineProblemFinding::where('category', $category)
+            ->where('finding', $finding)
+            ->exists();
+
+        if ($exists) {
+            return back()
+                ->withErrors(['finding' => 'Finding already exists in this category.'])
+                ->withInput();
+        }
+
+        MachineProblemFinding::create([
+            'category' => $category,
+            'finding' => $finding,
+        ]);
+
+        // "Save & add another" keeps the category so a category's findings
+        // can be typed one after another.
+        if ($request->boolean('add_another')) {
+            return redirect()
+                ->route('machine-problem-findings.create', ['category' => $category])
+                ->with('success', 'Finding saved. Add the next one.');
+        }
 
         return redirect()
             ->route('machine-problem-findings.index')

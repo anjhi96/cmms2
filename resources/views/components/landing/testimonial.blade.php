@@ -1,80 +1,39 @@
-<section id="testimonial" class="py-24 bg-slate-50">
+{{-- No customer quotes or scores exist yet, so this section states what the system does instead of inventing proof. --}}
+<section id="tim-maintenance" class="bg-white py-12 lg:py-20">
 
-    <div class="max-w-7xl mx-auto px-6">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        <div class="text-center">
+        <div class="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-20">
 
-            <span class="text-blue-600 font-semibold uppercase tracking-wider">
+            <div>
 
-                Testimonial
+                <p class="font-signage text-lg font-semibold text-blue-700">Tim Maintenance</p>
 
-            </span>
+                <h2 class="mt-2 font-signage text-3xl font-bold leading-tight text-blue-950 sm:text-4xl">
+                    Dibangun Berdasarkan Kebutuhan Tim Maintenance
+                </h2>
 
-            <h2 class="mt-3 text-4xl font-bold text-slate-900">
-
-                Dibangun Berdasarkan Kebutuhan Tim Maintenance
-
-            </h2>
-
-            <p class="mt-5 max-w-3xl mx-auto text-slate-600 text-lg">
-
-                FreeDOMS ini dirancang untuk menyederhanakan pekerjaan maintenance,
-                meningkatkan keterlacakan data, serta mempermudah evaluasi
-                Preventive Maintenance.
-
-            </p>
-
-        </div>
-
-        <div class="mt-20 grid md:grid-cols-4 gap-8">
-
-            <div class="bg-white rounded-2xl shadow border border-slate-200 p-6 text-center">
-
-                <h3 class="text-4xl font-bold text-blue-600">
-                    4.9★
-                </h3>
-
-                <p class="mt-2 text-slate-500">
-                    Internal Testing
+                <p class="mt-5 max-w-2xl text-lg text-slate-700">
+                    FreeDOMS ini dirancang untuk menyederhanakan pekerjaan maintenance,
+                    meningkatkan keterlacakan data, serta mempermudah evaluasi
+                    Preventive Maintenance.
                 </p>
 
             </div>
 
-            <div class="bg-white rounded-2xl shadow border border-slate-200 p-6 text-center">
+            <ul class="divide-y-2 divide-blue-950 border-y-2 border-blue-950">
 
-                <h3 class="text-4xl font-bold text-green-600">
-                    90%
-                </h3>
+                <li class="py-5">
+                    <p class="font-signage text-2xl font-bold text-blue-950">Paperless Checklist</p>
+                    <p class="mt-1 text-slate-700">Checklist, measurement, dan problem diisi langsung di sistem.</p>
+                </li>
 
-                <p class="mt-2 text-slate-500">
-                    Faster Documentation
-                </p>
+                <li class="py-5">
+                    <p class="font-signage text-2xl font-bold text-blue-950">Machine History Access</p>
+                    <p class="mt-1 text-slate-700">Histori maintenance mesin bisa dibuka lewat QR atau nomor mesin.</p>
+                </li>
 
-            </div>
-
-            <div class="bg-white rounded-2xl shadow border border-slate-200 p-6 text-center">
-
-                <h3 class="text-4xl font-bold text-yellow-500">
-                    100%
-                </h3>
-
-                <p class="mt-2 text-slate-500">
-                    Paperless Checklist
-                </p>
-
-            </div>
-
-            <div class="bg-white rounded-2xl shadow border border-slate-200 p-6 text-center">
-
-                <h3 class="text-4xl font-bold text-purple-600">
-                    24/7
-                </h3>
-
-                <p class="mt-2 text-slate-500">
-                    Machine History Access
-                </p>
-
-            </div>
+            </ul>
 
         </div>
 

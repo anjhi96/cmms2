@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@yield('lang', 'en')">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>FreeDOMS</title>
+    <title>@yield('title', 'FreeDOMS')</title>
 
     <link rel="icon" href="{{ asset('FreeDOMS.ico') }}" sizes="any">
     <link rel="icon" href="{{ asset('FreeDOMS.svg') }}" type="image/svg+xml">
@@ -17,6 +17,11 @@
     <meta name="theme-color" content="#1565c0">
     <meta name="app-user-id" content="{{ auth()->id() }}">
     <link rel="shortcut icon" href="{{ asset('FreeDOMS.ico') }}">
+
+    @stack('head')
+
+    {{-- Self-hosted via the Vite fonts plugin; Barlow is the DIN-style signage face used on the landing and login pages. --}}
+    @fonts
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 

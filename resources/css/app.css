@@ -5,6 +5,7 @@
    Imported AFTER Tailwind and Flux so brand tokens win. */
 @import './theme.css';
 @import './components.css';
+@import './landing.css';
 
 @source '../views';
 @source '../../app';
@@ -16,6 +17,8 @@
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-plain: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+    --font-signage: 'Barlow Semi Condensed', 'Barlow', ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {

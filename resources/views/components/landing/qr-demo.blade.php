@@ -1,254 +1,146 @@
-<section id="scan-demo" class="py-24 bg-white">
+{{-- Machine lookup on the left (works: submits to the machine history search), a labelled sample record on the right. --}}
+<section id="scan-demo" class="bg-white py-16 lg:py-24">
 
-    <div class="max-w-7xl mx-auto px-6">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        <div class="grid lg:grid-cols-2 gap-16 items-center">
+        <div class="grid items-start gap-12 lg:grid-cols-[1fr_1fr] lg:gap-20">
 
-            {{-- LEFT --}}
-            <div>
+            {{-- Lookup --}}
+            <div class="min-w-0" x-data="{ q: '' }">
 
-                <span class="text-blue-600 font-semibold uppercase tracking-wider">
+                <p class="font-signage text-lg font-semibold text-blue-700">Machine History</p>
 
-                    Machine History
-
-                </span>
-
-                <h2 class="mt-3 text-4xl font-bold text-slate-900">
-
+                <h2 class="mt-2 font-signage text-3xl font-bold leading-tight text-blue-950 sm:text-4xl lg:text-5xl">
                     Cukup Scan QR Code,
                     Semua Informasi Mesin Langsung Tersedia.
-
                 </h2>
 
-                <p class="mt-6 text-lg text-slate-600 leading-8">
-
+                <p class="mt-6 text-lg leading-8 text-slate-700">
                     Tidak perlu membuka dokumen atau mencari histori maintenance
                     secara manual. Scan QR yang terpasang pada mesin, lalu seluruh
                     informasi maintenance akan langsung ditampilkan.
-
                 </p>
 
-                <div class="mt-10 flex flex-col sm:flex-row gap-4">
+                <a href="{{ route('qr.scan') }}"
+                    class="mt-8 inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-md bg-amber-500 px-8 text-lg font-semibold text-amber-950 hover:bg-amber-400 active:bg-amber-600 sm:w-auto">
+                    <x-landing.icon name="qr" class="h-6 w-6" />
+                    Scan Mesin
+                </a>
 
-                    <a href="{{ route('qr.scan') }}"
-                        class="inline-flex justify-center items-center rounded-xl bg-blue-600 px-8 py-4 text-white font-semibold shadow-lg hover:bg-blue-700 transition">
+                <form action="{{ route('machine-history.index') }}" method="GET" role="search"
+                    class="mt-8 border-t-2 border-slate-200 pt-6">
 
-                        📷 Scan Mesin
+                    <label for="machine-search" class="font-semibold text-slate-800">
+                        Atau cari dengan nomor mesin
+                    </label>
 
-                    </a>
+                    <div class="mt-2 flex">
+                        <input id="machine-search" name="search" type="text" x-model="q" x-ref="q"
+                            placeholder="Masukkan Nomor Mesin" autocomplete="off" inputmode="numeric"
+                            class="min-h-12 w-full min-w-0 rounded-l-md border-2 border-r-0 border-slate-400 px-4 text-base text-slate-900 placeholder:text-slate-600">
 
-                    <div class="flex">
-
-                        <input type="text" placeholder="Masukkan Nomor Mesin"
-                            class="rounded-l-xl border border-slate-300 px-4 py-4 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-                        <button class="rounded-r-xl bg-slate-800 text-white px-6 hover:bg-slate-900">
-
+                        <button type="submit"
+                            class="min-h-12 rounded-r-md bg-blue-950 px-6 font-semibold text-white hover:bg-blue-800 active:bg-blue-900">
                             Cari
-
                         </button>
-
                     </div>
 
-                </div>
+                </form>
 
-                <div class="mt-8">
+                <div class="mt-5 flex flex-wrap items-center gap-2">
 
-                    <p class="text-sm text-slate-500">
+                    <span class="text-sm text-slate-700">Contoh:</span>
 
-                        Contoh:
+                    <button type="button" @click="q = '30001'; $refs.q.focus()"
+                        class="min-h-11 rounded-md border-2 border-slate-300 px-4 font-mono text-sm font-medium text-slate-800 hover:border-blue-600 hover:text-blue-700">
+                        30001
+                    </button>
 
-                    </p>
-
-                    <div class="flex flex-wrap gap-3 mt-3">
-
-                        <span class="px-4 py-2 rounded-full bg-slate-100 text-sm">
-
-                            30001
-
-                        </span>
-
-                        <span class="px-4 py-2 rounded-full bg-slate-100 text-sm">
-
-                            9004
-
-                        </span>
-                    </div>
+                    <button type="button" @click="q = '9004'; $refs.q.focus()"
+                        class="min-h-11 rounded-md border-2 border-slate-300 px-4 font-mono text-sm font-medium text-slate-800 hover:border-blue-600 hover:text-blue-700">
+                        9004
+                    </button>
 
                 </div>
 
             </div>
 
-            {{-- RIGHT --}}
-            <div>
+            {{-- Sample machine record --}}
+            <div class="min-w-0">
 
-                <div class="rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+                <div class="overflow-hidden rounded-lg border-2 border-blue-950 bg-white">
 
-                    {{-- Header --}}
-
-                    <div class="bg-blue-600 text-white px-6 py-5">
-
-                        <h3 class="text-xl font-bold">
-
-                            Machine History Preview
-
-                        </h3>
-
+                    <div class="flex items-center justify-between gap-3 bg-blue-950 px-5 py-4 text-white sm:px-6">
+                        <h3 class="font-signage text-xl font-bold">Machine History Preview</h3>
+                        <span class="text-sm text-blue-100">Data contoh</span>
                     </div>
 
-                    {{-- Body --}}
+                    <div class="p-5 sm:p-6">
 
-                    <div class="p-6 bg-white">
+                        <div class="flex items-start justify-between gap-4">
 
-                        <div class="flex items-center justify-between">
-
-                            <div>
-
-                                <h2 class="text-2xl font-bold">
-
-                                    Machine #30001
-
-                                </h2>
-
-                                <p class="text-slate-500">
-
-                                    Wet Wire Drawing Machine
-
+                            <div class="min-w-0">
+                                <p class="font-signage text-3xl font-bold text-blue-950">
+                                    Machine <span class="font-mono text-2xl">#30001</span>
                                 </p>
-
+                                <p class="text-slate-700">Wet Wire Drawing Machine</p>
                             </div>
 
-                            <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-sm font-semibold">
-
+                            <span class="flex shrink-0 items-center gap-2 text-sm font-semibold text-green-800">
+                                <span class="h-2.5 w-2.5 bg-green-600" aria-hidden="true"></span>
                                 ACTIVE
-
                             </span>
 
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4 mt-8">
+                        <dl class="mt-6 grid grid-cols-2 gap-px bg-slate-200">
 
-                            <div class="rounded-xl bg-slate-50 p-4">
-
-                                <p class="text-sm text-slate-500">
-
-                                    Last PM
-
-                                </p>
-
-                                <h4 class="font-bold mt-2">
-
-                                    29 Jul 2026
-
-                                </h4>
-
+                            <div class="bg-white py-3 pr-3">
+                                <dt class="text-sm text-slate-700">Last PM</dt>
+                                <dd class="mt-1 font-semibold text-blue-950">29 Jul 2026</dd>
                             </div>
 
-                            <div class="rounded-xl bg-slate-50 p-4">
-
-                                <p class="text-sm text-slate-500">
-
-                                    Next PM
-
-                                </p>
-
-                                <h4 class="font-bold mt-2">
-
-                                    29 Aug 2026
-
-                                </h4>
-
+                            <div class="bg-white py-3 pl-4">
+                                <dt class="text-sm text-slate-700">Next PM</dt>
+                                <dd class="mt-1 font-semibold text-blue-950">29 Aug 2026</dd>
                             </div>
 
-                            <div class="rounded-xl bg-slate-50 p-4">
-
-                                <p class="text-sm text-slate-500">
-
-                                    Problems
-
-                                </p>
-
-                                <h4 class="font-bold mt-2 text-red-600">
-
-                                    2 Findings
-
-                                </h4>
-
+                            <div class="bg-white py-3 pr-3">
+                                <dt class="text-sm text-slate-700">Problems</dt>
+                                <dd class="mt-1 font-semibold text-red-700">2 Findings</dd>
                             </div>
 
-                            <div class="rounded-xl bg-slate-50 p-4">
-
-                                <p class="text-sm text-slate-500">
-
-                                    Spareparts
-
-                                </p>
-
-                                <h4 class="font-bold mt-2 text-blue-600">
-
-                                    3 Items
-
-                                </h4>
-
+                            <div class="bg-white py-3 pl-4">
+                                <dt class="text-sm text-slate-700">Spareparts</dt>
+                                <dd class="mt-1 font-semibold text-blue-700">3 Items</dd>
                             </div>
 
-                        </div>
+                        </dl>
 
-                        <div class="mt-8 rounded-xl bg-slate-50 p-5">
+                        <div class="mt-6 border-t-2 border-blue-950 pt-4">
 
-                            <h4 class="font-semibold">
+                            <h4 class="font-signage text-lg font-semibold text-blue-950">Recent Maintenance</h4>
 
-                                Recent Maintenance
-
-                            </h4>
-
-                            <ul class="mt-4 space-y-3 text-sm">
-
-                                <li class="flex justify-between">
-
-                                    <span>✔ Bearing Inspection</span>
-
-                                    <span class="text-slate-400">
-
-                                        29 Jul
-
-                                    </span>
-
+                            <ul class="mt-2 divide-y divide-slate-200 text-[15px]">
+                                <li class="flex justify-between gap-3 py-2.5">
+                                    <span>Bearing Inspection</span>
+                                    <span class="text-slate-700">29 Jul</span>
                                 </li>
-
-                                <li class="flex justify-between">
-
-                                    <span>✔ Greasing</span>
-
-                                    <span class="text-slate-400">
-
-                                        29 Jul
-
-                                    </span>
-
+                                <li class="flex justify-between gap-3 py-2.5">
+                                    <span>Greasing</span>
+                                    <span class="text-slate-700">29 Jul</span>
                                 </li>
-
-                                <li class="flex justify-between">
-
-                                    <span>✔ Belt Replacement</span>
-
-                                    <span class="text-slate-400">
-
-                                        29 Jul
-
-                                    </span>
-
+                                <li class="flex justify-between gap-3 py-2.5">
+                                    <span>Belt Replacement</span>
+                                    <span class="text-slate-700">29 Jul</span>
                                 </li>
-
                             </ul>
 
                         </div>
 
-                        <a href="#"
-                            class="mt-8 inline-flex w-full justify-center rounded-xl bg-blue-600 py-4 text-white font-semibold hover:bg-blue-700 transition">
-
+                        <a href="{{ route('machine-history.index') }}"
+                            class="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-blue-600 font-semibold text-white hover:bg-blue-700 active:bg-blue-800">
                             View Machine History
-
                         </a>
 
                     </div>

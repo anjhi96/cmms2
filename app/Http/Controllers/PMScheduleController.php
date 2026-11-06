@@ -274,7 +274,9 @@ class PMScheduleController extends Controller
         // become pm_spareparts when the PIC saves, via the normal save path.
         $mandatoryPrefilled = false;
 
-        if ($pmSpareparts->isEmpty() && ! in_array($pmSchedule->status, PMSchedule::DONE_STATUSES, true)) {
+        if ($pmSpareparts->isEmpty()
+            && ! $pmSchedule->no_sparepart
+            && ! in_array($pmSchedule->status, PMSchedule::DONE_STATUSES, true)) {
             $pmSpareparts = MandatorySparepart::with('sparepart')
                 ->where('machine_type', $pmSchedule->machine_type)
                 ->get()
@@ -343,7 +345,7 @@ class PMScheduleController extends Controller
         $data = $request->only([
             'order_number', 'pic', 'oil_change', 'greasing', 'wo_zsbp', 'remarks',
             'sessions', 'actual_date', 'start_time', 'end_time',
-            'measurements', 'problems', 'spareparts',
+            'measurements', 'problems', 'spareparts', 'no_problem', 'no_sparepart',
         ]);
 
         app(PMScheduleSaveService::class)->save($pmSchedule, $data);

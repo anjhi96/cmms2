@@ -1,182 +1,59 @@
-<section id="how-it-works" class="py-24 bg-slate-50">
+{{-- Storyboard: each step gets an illustrated frame; frames open in sequence when the strip scrolls into view. --}}
+@php
+    $steps = [
+        ['scene' => 'schedule', 'title' => 'Jadwalkan PM', 'body' => 'Koordinator mengunggah jadwal Preventive Maintenance dan melakukan assignment PIC sesuai area.'],
+        ['scene' => 'checklist', 'title' => 'Lakukan PM', 'body' => 'PIC mengisi checklist digital, measurement, problem, sparepart, dan hasil inspeksi langsung melalui sistem.'],
+        ['scene' => 'scan', 'title' => 'Scan QR Mesin', 'body' => 'Cukup scan QR Code pada mesin untuk melihat histori maintenance tanpa harus mencari dokumen.'],
+        ['scene' => 'analysis', 'title' => 'Analisa & Evaluasi', 'body' => 'Seluruh histori maintenance tersimpan sehingga mempermudah analisa problem, evaluasi PM, dan pengambilan keputusan.'],
+    ];
+@endphp
 
-    <div class="max-w-7xl mx-auto px-6">
+<section id="how-it-works" class="on-dark bg-blue-950 py-16 text-white lg:py-28">
 
-        <div class="text-center">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-            <span class="text-blue-600 font-semibold uppercase tracking-wider">
+        <div class="grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-end lg:gap-16">
 
-                How It Works
+            <div>
+                <p class="font-signage text-lg font-semibold text-amber-300">How It Works</p>
 
-            </span>
+                <h2 class="mt-2 font-signage text-3xl font-bold leading-tight sm:text-4xl lg:text-5xl">
+                    Maintenance Menjadi Lebih Mudah Dalam 4 Langkah
+                </h2>
+            </div>
 
-            <h2 class="mt-3 text-4xl font-bold text-slate-900">
-
-                Maintenance Menjadi Lebih Mudah Dalam 4 Langkah
-
-            </h2>
-
-            <p class="mt-5 max-w-3xl mx-auto text-slate-600 text-lg">
-
+            <p class="max-w-xl text-lg text-blue-100 lg:justify-self-end">
                 Seluruh proses Preventive Maintenance terdigitalisasi mulai dari
                 penjadwalan hingga histori mesin hanya dalam satu platform.
-
             </p>
 
         </div>
 
-        <div class="mt-20 relative">
+        <ol class="mt-12 grid gap-10 sm:grid-cols-2 lg:mt-16 lg:grid-cols-4 lg:gap-6" data-reveal>
 
-            {{-- garis desktop --}}
-            <div class="hidden lg:block absolute top-12 left-0 w-full h-0.5 bg-slate-200"></div>
+            @foreach ($steps as $i => $step)
+                <li class="min-w-0">
 
-            <div class="grid lg:grid-cols-4 gap-12 relative">
-
-                {{-- STEP 1 --}}
-                <div class="text-center">
-
-                    <div
-                        class="relative mx-auto w-24 h-24 rounded-full bg-blue-600 text-white flex items-center justify-center text-4xl shadow-lg">
-
-                        📅
-
+                    <div class="frame overflow-hidden rounded-md border-2 border-blue-700" style="--d: {{ $i * 0.18 }}s">
+                        <x-landing.story-frame :scene="$step['scene']" />
                     </div>
 
-                    <div class="mt-6">
-
-                        <span class="text-blue-600 font-bold">
-
-                            STEP 01
-
+                    <div class="mt-5 flex items-baseline gap-3">
+                        <span class="font-signage text-4xl font-bold leading-none text-blue-300" aria-hidden="true">
+                            {{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}
                         </span>
-
-                        <h3 class="mt-2 text-xl font-bold">
-
-                            Jadwalkan PM
-
-                        </h3>
-
-                        <p class="mt-3 text-slate-600">
-
-                            Koordinator mengunggah jadwal Preventive Maintenance
-                            dan melakukan assignment PIC sesuai area.
-
-                        </p>
-
+                        <div>
+                            <p class="text-sm font-medium text-blue-200">Step {{ str_pad($i + 1, 2, '0', STR_PAD_LEFT) }}</p>
+                            <h3 class="font-signage text-2xl font-bold">{{ $step['title'] }}</h3>
+                        </div>
                     </div>
 
-                </div>
+                    <p class="mt-3 text-blue-100">{{ $step['body'] }}</p>
 
-                {{-- STEP 2 --}}
-                <div class="text-center">
+                </li>
+            @endforeach
 
-                    <div
-                        class="relative mx-auto w-24 h-24 rounded-full bg-green-600 text-white flex items-center justify-center text-4xl shadow-lg">
-
-                        🛠️
-
-                    </div>
-
-                    <div class="mt-6">
-
-                        <span class="text-green-600 font-bold">
-
-                            STEP 02
-
-                        </span>
-
-                        <h3 class="mt-2 text-xl font-bold">
-
-                            Lakukan PM
-
-                        </h3>
-
-                        <p class="mt-3 text-slate-600">
-
-                            PIC mengisi checklist digital, measurement,
-                            problem, sparepart, dan hasil inspeksi langsung
-                            melalui sistem.
-
-                        </p>
-
-                    </div>
-
-                </div>
-
-                {{-- STEP 3 --}}
-                <div class="text-center">
-
-                    <div
-                        class="relative mx-auto w-24 h-24 rounded-full bg-yellow-500 text-white flex items-center justify-center text-4xl shadow-lg">
-
-                        📱
-
-                    </div>
-
-                    <div class="mt-6">
-
-                        <span class="text-yellow-600 font-bold">
-
-                            STEP 03
-
-                        </span>
-
-                        <h3 class="mt-2 text-xl font-bold">
-
-                            Scan QR Mesin
-
-                        </h3>
-
-                        <p class="mt-3 text-slate-600">
-
-                            Cukup scan QR Code pada mesin untuk melihat
-                            histori maintenance tanpa harus mencari dokumen.
-
-                        </p>
-
-                    </div>
-
-                </div>
-
-                {{-- STEP 4 --}}
-                <div class="text-center">
-
-                    <div
-                        class="relative mx-auto w-24 h-24 rounded-full bg-purple-600 text-white flex items-center justify-center text-4xl shadow-lg">
-
-                        📊
-
-                    </div>
-
-                    <div class="mt-6">
-
-                        <span class="text-purple-600 font-bold">
-
-                            STEP 04
-
-                        </span>
-
-                        <h3 class="mt-2 text-xl font-bold">
-
-                            Analisa & Evaluasi
-
-                        </h3>
-
-                        <p class="mt-3 text-slate-600">
-
-                            Seluruh histori maintenance tersimpan sehingga
-                            mempermudah analisa problem, evaluasi PM,
-                            dan pengambilan keputusan.
-
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
+        </ol>
 
     </div>
 

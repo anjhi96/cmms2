@@ -33,10 +33,20 @@ class PMSchedule extends Model
         'greasing',
         'wo_zsbp',
         'gearbox_problem',
+        'no_problem',
+        'no_sparepart',
         'remarks',
         'next_pm',
         'status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'no_problem' => 'boolean',
+            'no_sparepart' => 'boolean',
+        ];
+    }
 
     public function model(array $row)
     {

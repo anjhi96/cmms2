@@ -63,6 +63,17 @@ function restoreSafeFieldsFromDraft(form, payload) {
         picField.value = payload.pic;
     }
 
+    // An unticked checkbox is simply absent from the payload, so only a
+    // ticked one is restored (like the other fields, absent = leave as is).
+    ['no_problem', 'no_sparepart'].forEach((name) => {
+        const field = form.elements.namedItem(name);
+
+        if (field && !field.disabled && payload[name] === '1' && !field.checked) {
+            field.checked = true;
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+
     Object.entries(payload.measurements ?? {}).forEach(([index, measurement]) => {
         setValue(`measurements[${index}][measurement_value]`, measurement?.measurement_value);
     });

@@ -44,7 +44,7 @@ export const DRAFT_TYPE = 'PM';
 export const PM_SAVE_FIELDS = [
     'order_number', 'pic', 'oil_change', 'greasing', 'wo_zsbp', 'remarks',
     'sessions', 'actual_date', 'start_time', 'end_time',
-    'measurements', 'problems', 'spareparts',
+    'measurements', 'problems', 'spareparts', 'no_problem', 'no_sparepart',
 ];
 
 export class PmSaveValidationError extends Error {

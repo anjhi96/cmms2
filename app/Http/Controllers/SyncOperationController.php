@@ -446,7 +446,7 @@ class SyncOperationController extends Controller
         $data = collect($payload)->only([
             'order_number', 'pic', 'oil_change', 'greasing', 'wo_zsbp', 'remarks',
             'sessions', 'actual_date', 'start_time', 'end_time',
-            'measurements', 'problems', 'spareparts',
+            'measurements', 'problems', 'spareparts', 'no_problem', 'no_sparepart',
         ])->all();
 
         app(PMScheduleSaveService::class)->save($pmSchedule, $data);

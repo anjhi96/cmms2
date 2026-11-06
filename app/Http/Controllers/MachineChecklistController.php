@@ -133,13 +133,32 @@ class MachineChecklistController extends Controller
     public function create()
     {
         $machines = Machine::select('machine_type')
+            ->whereNotNull('machine_type')
+            ->where('machine_type', '!=', '')
             ->distinct()
             ->orderBy('machine_type')
             ->get();
 
+        // Existing sections per machine type, with their order and the next
+        // free item order, so the form can prefill both when a section is reused.
+        $sectionsByType = MachineChecklist::selectRaw('machine_type, section, MIN(section_order) as section_order, MAX(item_order) as max_item_order')
+            ->whereNotNull('section')
+            ->where('section', '!=', '')
+            ->groupBy('machine_type', 'section')
+            ->orderBy('section_order')
+            ->get()
+            ->groupBy('machine_type')
+            ->map(fn ($rows) => $rows->map(fn ($row) => [
+                'section' => $row->section,
+                'section_order' => (int) $row->section_order,
+                'next_item_order' => (int) $row->max_item_order + 1,
+            ])->values());
+
+        $maintenanceTypes = ['check', 'clean', 'lubrication', 'replace'];
+
         return view(
             'machine-checklists.create',
-            compact('machines')
+            compact('machines', 'sectionsByType', 'maintenanceTypes')
         );
     }
 
@@ -152,12 +171,13 @@ class MachineChecklistController extends Controller
             'machine_type' => 'required',
             'section' => 'required',
             'checklist_item' => 'required',
+            'maintenance_type' => 'required|in:check,clean,lubrication,replace',
             'section_order' => 'required|integer|min:1',
             'item_order' => 'required|integer|min:1'
         ]);
 
         $exists = MachineChecklist::where('machine_type', $request->machine_type)
-            ->where('section', $request->section)
+            ->where('section', trim($request->section))
             ->where('checklist_item', trim($request->checklist_item))
             ->exists();
 
@@ -179,9 +199,23 @@ class MachineChecklistController extends Controller
 
             'section_order' => $request->section_order,
 
-            'item_order' => $request->item_order
+            'item_order' => $request->item_order,
+
+            'maintenance_type' => $request->maintenance_type,
 
         ]);
+
+        // "Save & add another" keeps the machine type and section so a whole
+        // section can be typed in one sitting.
+        if ($request->boolean('add_another')) {
+            return redirect()
+                ->route('machine-checklists.create', [
+                    'machine_type' => $request->machine_type,
+                    'section' => trim($request->section),
+                    'maintenance_type' => $request->maintenance_type,
+                ])
+                ->with('success', 'Checklist item saved. Add the next one.');
+        }
 
         return redirect()
             ->route('machine-checklists.index')

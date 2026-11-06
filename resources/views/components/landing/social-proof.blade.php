@@ -1,105 +1,62 @@
-<section class="py-16 bg-white border-y border-slate-100">
+{{-- Spec strip: the four capabilities as one ruled row, read like the spec line on a machine plate. --}}
+<section class="border-y-2 border-blue-950 bg-white">
 
-    <div class="max-w-7xl mx-auto px-6">
+    <div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
 
-        <div class="text-center">
+        <div class="grid gap-4 lg:grid-cols-[1fr_1fr] lg:items-end lg:gap-16">
 
-            <p class="text-sm font-semibold uppercase tracking-widest text-slate-500">
+            <div>
+                <p class="font-signage text-lg font-semibold text-blue-700">
+                    Designed for Industrial Maintenance Teams
+                </p>
 
-                Designed for Industrial Maintenance Teams
+                <h2 class="mt-2 font-signage text-3xl font-bold leading-tight text-blue-950 sm:text-4xl">
+                    Satu Platform untuk Seluruh Aktivitas Preventive Maintenance
+                </h2>
+            </div>
 
-            </p>
-
-            <h2 class="mt-3 text-3xl font-bold text-slate-900">
-
-                Satu Platform untuk Seluruh Aktivitas Preventive Maintenance
-
-            </h2>
-
-            <p class="mt-4 max-w-3xl mx-auto text-slate-600">
-
+            <p class="max-w-xl text-slate-700 lg:justify-self-end">
                 Dibangun berdasarkan kebutuhan operasional maintenance di industri manufaktur,
                 membantu tim maintenance bekerja lebih cepat, terdokumentasi, dan mudah dipantau.
-
             </p>
 
         </div>
 
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
+        <ul class="mt-10 grid grid-cols-1 border-t border-slate-300 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-slate-300">
 
-            <div class="bg-slate-50 rounded-2xl p-6 text-center border border-slate-200">
+            <li class="flex gap-4 border-b border-slate-300 py-5 sm:pr-6 lg:border-b-0 lg:py-2 lg:pr-6">
+                <x-landing.icon name="calendar" class="mt-0.5 h-7 w-7 shrink-0 text-blue-700" />
+                <div>
+                    <h3 class="font-signage text-xl font-semibold text-blue-950">Preventive Maintenance</h3>
+                    <p class="mt-1 text-[15px] text-slate-700">Penjadwalan dan pelaksanaan PM yang terstruktur.</p>
+                </div>
+            </li>
 
-                <div class="text-4xl mb-3">🛠️</div>
+            <li class="flex gap-4 border-b border-slate-300 py-5 sm:pl-6 lg:border-b-0 lg:py-2 lg:px-6">
+                <x-landing.icon name="clipboard" class="mt-0.5 h-7 w-7 shrink-0 text-blue-700" />
+                <div>
+                    <h3 class="font-signage text-xl font-semibold text-blue-950">Digital Checklist</h3>
+                    <p class="mt-1 text-[15px] text-slate-700">Checklist digital lengkap dengan measurement dan remarks.</p>
+                </div>
+            </li>
 
-                <h3 class="font-bold text-lg">
+            <li class="flex gap-4 border-b border-slate-300 py-5 sm:pr-6 sm:border-b-0 lg:py-2 lg:px-6">
+                <x-landing.icon name="qr" class="mt-0.5 h-7 w-7 shrink-0 text-blue-700" />
+                <div>
+                    <h3 class="font-signage text-xl font-semibold text-blue-950">QR Machine History</h3>
+                    <p class="mt-1 text-[15px] text-slate-700">Scan QR untuk melihat histori maintenance mesin secara instan.</p>
+                </div>
+            </li>
 
-                    Preventive Maintenance
+            <li class="flex gap-4 py-5 sm:pl-6 lg:py-2 lg:pr-0 lg:pl-6">
+                <x-landing.icon name="nut" class="mt-0.5 h-7 w-7 shrink-0 text-blue-700" />
+                <div>
+                    <h3 class="font-signage text-xl font-semibold text-blue-950">Sparepart Tracking</h3>
+                    <p class="mt-1 text-[15px] text-slate-700">Monitoring penggunaan sparepart pada setiap aktivitas PM.</p>
+                </div>
+            </li>
 
-                </h3>
-
-                <p class="text-sm text-slate-600 mt-2">
-
-                    Penjadwalan dan pelaksanaan PM yang terstruktur.
-
-                </p>
-
-            </div>
-
-            <div class="bg-slate-50 rounded-2xl p-6 text-center border border-slate-200">
-
-                <div class="text-4xl mb-3">📋</div>
-
-                <h3 class="font-bold text-lg">
-
-                    Digital Checklist
-
-                </h3>
-
-                <p class="text-sm text-slate-600 mt-2">
-
-                    Checklist digital lengkap dengan measurement dan remarks.
-
-                </p>
-
-            </div>
-
-            <div class="bg-slate-50 rounded-2xl p-6 text-center border border-slate-200">
-
-                <div class="text-4xl mb-3">📱</div>
-
-                <h3 class="font-bold text-lg">
-
-                    QR Machine History
-
-                </h3>
-
-                <p class="text-sm text-slate-600 mt-2">
-
-                    Scan QR untuk melihat histori maintenance mesin secara instan.
-
-                </p>
-
-            </div>
-
-            <div class="bg-slate-50 rounded-2xl p-6 text-center border border-slate-200">
-
-                <div class="text-4xl mb-3">📦</div>
-
-                <h3 class="font-bold text-lg">
-
-                    Sparepart Tracking
-
-                </h3>
-
-                <p class="text-sm text-slate-600 mt-2">
-
-                    Monitoring penggunaan sparepart pada setiap aktivitas PM.
-
-                </p>
-
-            </div>
-
-        </div>
+        </ul>
 
     </div>
 

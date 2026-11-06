@@ -1,67 +1,56 @@
-<section class="py-24 bg-blue-600 relative overflow-hidden">
+{{-- Closing shot: the same line from the hero, veiled so the copy reads; the hazard band marks the end of the page. --}}
+<section class="on-dark relative bg-blue-950 text-white">
 
-    <div class="absolute inset-0 opacity-10">
+    <div class="hazard relative z-10 h-4" aria-hidden="true"></div>
 
-        <div class="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-white"></div>
+    <x-landing.factory-scene uid="cta" :toggle="false" :still="true" class="absolute inset-0 top-4" aria-hidden="true">
+        <div class="scene-veil pointer-events-none absolute inset-0"></div>
+    </x-landing.factory-scene>
 
-        <div class="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-white"></div>
+    <div class="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-28">
 
-    </div>
+        <div class="grid items-center gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:gap-20">
 
-    <div class="relative max-w-5xl mx-auto px-6 text-center text-white">
+            <div>
 
-        <span class="uppercase tracking-widest text-blue-100 font-semibold">
+                <p class="font-signage text-lg font-semibold text-amber-300">Ready to Go Digital?</p>
 
-            Ready to Go Digital?
+                <h2 class="mt-2 font-signage text-4xl font-bold leading-[1.05] sm:text-5xl lg:text-6xl">
+                    Siap Mengubah Cara Tim Maintenance Bekerja?
+                </h2>
 
-        </span>
+                <p class="mt-6 max-w-2xl text-lg leading-8 text-blue-100">
+                    Mulai digitalisasi Preventive Maintenance sekarang.
+                    Jadwalkan PM, isi checklist, scan QR mesin,
+                    dan akses histori maintenance kapan saja.
+                </p>
 
-        <h2 class="mt-4 text-5xl font-extrabold leading-tight">
+            </div>
 
-            Siap Mengubah Cara Tim
-            <br>
+            <div class="flex flex-col gap-3">
 
-            Maintenance Bekerja?
+                <a href="{{ route('qr.scan') }}"
+                    class="inline-flex min-h-14 items-center justify-center gap-3 rounded-md bg-amber-500 px-6 text-lg font-semibold text-amber-950 hover:bg-amber-400 active:bg-amber-600">
+                    <x-landing.icon name="qr" class="h-6 w-6" />
+                    Scan Mesin
+                </a>
 
-        </h2>
+                <a href="{{ route('dashboard-guest') }}"
+                    class="inline-flex min-h-14 items-center justify-center rounded-md border-2 border-white bg-blue-950/60 px-6 text-lg font-semibold text-white hover:bg-white hover:text-blue-950">
+                    Lihat Dashboard
+                </a>
 
-        <p class="mt-8 text-xl text-blue-100 leading-9 max-w-3xl mx-auto">
+                <a href="{{ route('monitor') }}"
+                    class="inline-flex min-h-14 items-center justify-center rounded-md border-2 border-white bg-blue-950/60 px-6 text-lg font-semibold text-white hover:bg-white hover:text-blue-950">
+                    Lihat Monitor
+                </a>
 
-            Mulai digitalisasi Preventive Maintenance sekarang.
-            Jadwalkan PM, isi checklist, scan QR mesin,
-            dan akses histori maintenance kapan saja.
+                <a href="{{ route('login') }}"
+                    class="inline-flex min-h-14 items-center justify-center rounded-md border-2 border-blue-300 bg-blue-950/60 px-6 text-lg font-semibold text-blue-100 hover:bg-blue-900">
+                    Login FreeDOMS
+                </a>
 
-        </p>
-
-        <div class="mt-12 flex flex-wrap justify-center gap-5">
-
-            <a href="{{ route('dashboard-guest') }}"
-                class="px-8 py-4 rounded-2xl bg-white text-blue-700 font-bold shadow-xl hover:scale-105 transition">
-
-                📊 Lihat Dashboard
-
-            </a>
-
-            <a href="{{ route('monitor') }}"
-                class="px-8 py-4 rounded-2xl border-2 border-white text-white font-bold hover:bg-white hover:text-blue-700 transition">
-
-                🖥️ Lihat Monitor
-
-            </a>
-
-            <a href="{{ route('qr.scan') }}"
-                class="px-8 py-4 rounded-2xl border-2 border-white text-white font-bold hover:bg-white hover:text-blue-700 transition">
-
-                📷 Scan Mesin
-
-            </a>
-
-            <a href="{{ route('login') }}"
-                class="px-8 py-4 rounded-2xl border-2 border-white text-white font-bold hover:bg-white hover:text-blue-700 transition">
-
-                🔐 Login FreeDOMS
-
-            </a>
+            </div>
 
         </div>
 

@@ -1,67 +1,70 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-slate-100 antialiased dark:bg-slate-950">
-        <div class="relative grid min-h-screen lg:grid-cols-2">
+    <body class="min-h-screen bg-slate-50 font-plain text-slate-800 antialiased dark:bg-slate-950 dark:text-slate-100">
+        <div class="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
 
-            {{-- Left panel: branded, dark slate like the app sidebar --}}
-            <div class="relative hidden flex-col justify-between overflow-hidden bg-slate-900 p-10 text-white lg:flex">
-                {{-- Decorative gradient blobs --}}
-                <div class="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-400/30 to-cyan-500/30 blur-3xl"></div>
-                <div class="pointer-events-none absolute -bottom-24 -right-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-3xl"></div>
-                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(16,185,129,0.08),transparent_60%)]"></div>
+            {{-- Same WWD line as the landing hero, so signing in feels like stepping onto that floor. --}}
+            <aside class="on-dark relative h-56 bg-blue-950 text-white sm:h-72 lg:h-auto lg:min-h-screen">
 
-                <a href="{{ route('home') }}" class="relative z-20 flex items-center gap-3" wire:navigate>
-                    <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 text-slate-950 shadow-lg shadow-emerald-500/20">
-                        <x-app-logo-icon class="h-7 w-7" />
-                    </span>
-                    <div>
-                        <div class="text-base font-semibold tracking-wide">FreeDOMS</div>
-                        <div class="text-xs text-slate-400">Preventive Maintenance System</div>
-                    </div>
-                </a>
+                <x-landing.factory-scene uid="auth" class="absolute inset-0">
+                    <div class="scene-scrim pointer-events-none absolute inset-0 hidden lg:block"></div>
+                    <div class="scene-fade pointer-events-none absolute inset-x-0 bottom-0 h-2/3"></div>
+                </x-landing.factory-scene>
 
-                @php
-                    [$message, $author] = str(Illuminate\Foundation\Inspiring::quotes()->random())->explode('-');
-                @endphp
+                <div class="pointer-events-none relative z-10 flex h-full flex-col justify-between p-5 sm:p-8 lg:p-12">
 
-                <div class="relative z-20 mt-auto">
-                    <blockquote class="space-y-3">
-                        <flux:heading size="lg" class="text-slate-100">&ldquo;{{ trim($message) }}&rdquo;</flux:heading>
-                        <footer class="text-sm text-slate-400">— {{ trim($author) }}</footer>
-                    </blockquote>
-
-                    <div class="mt-8 flex items-center gap-6 text-xs text-slate-500">
-                        <span class="flex items-center gap-1.5">
-                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Reliable
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="h-1.5 w-1.5 rounded-full bg-cyan-400"></span> Efficient
-                        </span>
-                        <span class="flex items-center gap-1.5">
-                            <span class="h-1.5 w-1.5 rounded-full bg-blue-400"></span> Modern
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Right panel: form --}}
-            <div class="flex flex-col items-center justify-center px-6 py-10 sm:px-10">
-                <div class="w-full max-w-sm">
-
-                    {{-- Mobile logo --}}
-                    <a href="{{ route('home') }}" class="z-20 mb-8 flex flex-col items-center gap-2 lg:hidden" wire:navigate>
-                        <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 text-slate-950 shadow-lg shadow-emerald-500/20">
+                    <a href="{{ route('home') }}"
+                        class="pointer-events-auto flex min-h-11 w-fit items-center gap-3 rounded-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-amber-400">
+                        <span class="flex h-10 w-10 items-center justify-center rounded-md bg-blue-600 text-white">
                             <x-app-logo-icon class="h-6 w-6" />
                         </span>
-                        <span class="text-base font-semibold tracking-wide text-slate-800 dark:text-white">FreeDOMS</span>
+                        <span class="leading-tight">
+                            <span class="block font-signage text-xl font-bold">FreeDOMS</span>
+                            <span class="block text-xs text-blue-200">Preventive Maintenance System</span>
+                        </span>
                     </a>
 
-                    {{ $slot }}
+                    <div class="hidden max-w-md pb-14 lg:block">
+                        <p class="font-signage text-4xl font-bold leading-tight">
+                            Masuk untuk mengisi checklist PM dan mencatat hasil inspeksi.
+                        </p>
+                        <p class="mt-4 text-lg text-blue-100">
+                            Scan mesin, dashboard, dan monitor tetap bisa dibuka tanpa login.
+                        </p>
+                    </div>
+
                 </div>
-            </div>
+            </aside>
+
+            <main data-auth class="flex flex-col justify-center px-4 py-10 sm:px-10 lg:px-16">
+                <div class="mx-auto w-full max-w-sm lg:mx-0">
+
+                    {{ $slot }}
+
+                    <nav aria-label="Akses tanpa login" class="mt-10 border-t-2 border-slate-200 pt-6 dark:border-slate-800">
+                        <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Tanpa login</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <a href="{{ route('qr.scan') }}"
+                                class="inline-flex min-h-11 items-center gap-2 rounded-md bg-amber-500 px-4 font-semibold text-amber-950 hover:bg-amber-400 active:bg-amber-600 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                                <x-landing.icon name="qr" class="h-5 w-5" />
+                                Scan Mesin
+                            </a>
+                            <a href="{{ route('dashboard-guest') }}"
+                                class="inline-flex min-h-11 items-center rounded-md border-2 border-blue-950 px-4 font-semibold text-blue-950 hover:bg-blue-950 hover:text-white dark:border-blue-300 dark:text-white dark:hover:bg-blue-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                                Dashboard
+                            </a>
+                            <a href="{{ route('monitor') }}"
+                                class="inline-flex min-h-11 items-center rounded-md border-2 border-blue-950 px-4 font-semibold text-blue-950 hover:bg-blue-950 hover:text-white dark:border-blue-300 dark:text-white dark:hover:bg-blue-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                                Monitor
+                            </a>
+                        </div>
+                    </nav>
+
+                </div>
+            </main>
         </div>
 
         @persist('toast')

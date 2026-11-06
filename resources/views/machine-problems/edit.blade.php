@@ -21,6 +21,16 @@
             </div>
         @endif
 
+        @if ($errors->any())
+            <div class="bg-red-100 text-red-700 p-3 rounded mb-4">
+                <ul class="list-disc ml-5">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <div class="bg-white rounded-lg shadow p-6 max-w-3xl">
 
             <form action="{{ route('machine-problems.update', $machineProblem->id) }}" method="POST">
@@ -47,6 +57,24 @@
                         @endforeach
 
                     </select>
+
+                </div>
+
+                {{-- CATEGORY --}}
+                <div class="mb-4">
+
+                    <label for="category" class="block mb-2">
+                        Category
+                    </label>
+
+                    <input type="text" id="category" name="category" list="categoryOptions" autocomplete="off"
+                        value="{{ old('category', $machineProblem->category) }}"
+                        class="w-full border p-3 rounded" required>
+                    <datalist id="categoryOptions">
+                        @foreach ($categories as $category)
+                            <option value="{{ $category }}"></option>
+                        @endforeach
+                    </datalist>
 
                 </div>
 

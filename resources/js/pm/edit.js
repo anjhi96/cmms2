@@ -269,6 +269,44 @@ window.removeSparepart = function (button) {
     button?.closest('.sparepart-row')?.remove();
 };
 
+// "No problem found" / "No sparepart used": hide the rows and disable their
+// fields, so they are left out of both the online POST and the offline
+// payload (FormData skips disabled fields). Unticking brings them back.
+function applyNoneToggle(checkbox) {
+    const entry = document.getElementById(checkbox.dataset.noneToggle);
+
+    if (!entry) {
+        return;
+    }
+
+    const none = checkbox.checked;
+
+    entry.classList.toggle('hidden', none);
+    // Only named fields: TomSelect's own search input has no name and
+    // follows its select via tomselect.disable()/enable().
+    entry.querySelectorAll('[name]').forEach(function (field) {
+        if (field.tomselect) {
+            none ? field.tomselect.disable() : field.tomselect.enable();
+        }
+
+        // Warehouse rows stay locked regardless of the toggle.
+        if (field.dataset.lockedDisabled === undefined) {
+            field.dataset.lockedDisabled = field.disabled ? '1' : '0';
+        }
+
+        field.disabled = none || field.dataset.lockedDisabled === '1';
+    });
+}
+
+function initNoneToggles() {
+    document.querySelectorAll('[data-none-toggle]').forEach(function (checkbox) {
+        applyNoneToggle(checkbox);
+        checkbox.addEventListener('change', function () {
+            applyNoneToggle(checkbox);
+        });
+    });
+}
+
 function loadTomSelectScript() {
     if (window.TomSelect) {
         return Promise.resolve();
@@ -317,6 +355,7 @@ function initPage() {
     endInput?.addEventListener('change', calculateDuration);
 
     initSpareparts();
+    initNoneToggles();
 
     // sessions add/remove handlers
     document.getElementById('add-session')?.addEventListener('click', addSession);

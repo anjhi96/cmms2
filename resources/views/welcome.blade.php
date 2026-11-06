@@ -1,27 +1,38 @@
 @extends('layouts.guest')
 
+@section('lang', 'id')
+@section('title', 'FreeDOMS | Digital Preventive Maintenance')
+
 @section('content')
 
-<x-landing.navbar />
+<div class="landing">
 
-<x-landing.hero />
+    <x-landing.navbar />
 
-<x-landing.social-proof />
+    <main>
 
-<x-landing.problem-solution />
+        <x-landing.hero />
 
-<x-landing.features />
+        <x-landing.social-proof />
 
-<x-landing.how-it-works />
+        <x-landing.problem-solution />
 
-<x-landing.testimonial />
+        <x-landing.features />
 
-<x-landing.final-cta />
+        <x-landing.how-it-works />
 
-<x-landing.statistics/>
+        <x-landing.qr-demo />
 
-<x-landing.qr-demo/>
+        <x-landing.statistics />
 
-<x-landing.footer />
+        <x-landing.testimonial />
+
+        <x-landing.final-cta />
+
+    </main>
+
+    <x-landing.footer />
+
+</div>
 
 @endsection

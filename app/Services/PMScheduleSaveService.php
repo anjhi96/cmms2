@@ -8,6 +8,7 @@ use App\Models\PMSchedule;
 use App\Models\PMSparepart;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * PM_SAVE — the single business-logic path for saving a PM Schedule's
@@ -51,6 +52,8 @@ class PMScheduleSaveService
             'measurements.*.measurement_value' => 'nullable',
             'spareparts.*.sparepart_id' => 'nullable',
             'spareparts.*.qty' => 'nullable|integer|min:1',
+            'no_problem' => 'nullable|boolean',
+            'no_sparepart' => 'nullable|boolean',
         ];
 
         if ($hasSessions) {
@@ -78,7 +81,9 @@ class PMScheduleSaveService
      */
     public function save(PMSchedule $pmSchedule, array $data): void
     {
-        DB::transaction(function () use ($data, $pmSchedule) {
+        [$noProblem, $noSparepart] = $this->resolveNoneFlags($pmSchedule, $data);
+
+        DB::transaction(function () use ($data, $pmSchedule, $noProblem, $noSparepart) {
 
             // Update header (do NOT change actual_date/start_time/end_time/duration for multi-day sessions)
             $updateHeader = [
@@ -88,6 +93,8 @@ class PMScheduleSaveService
                 'greasing' => $data['greasing'] ?? null,
                 'wo_zsbp' => $data['wo_zsbp'] ?? null,
                 'remarks' => $data['remarks'] ?? null,
+                'no_problem' => $noProblem,
+                'no_sparepart' => $noSparepart,
                 'status' => 'IN_PROGRESS',
             ];
 
@@ -284,5 +291,47 @@ class PMScheduleSaveService
             }
 
         });
+    }
+
+    /**
+     * "No problem found" / "No sparepart used" are explicit confirmations,
+     * so they may not be sent together with filled rows. Warehouse-injected
+     * usage is real usage, so it always overrides "no sparepart".
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: bool, 1: bool}
+     *
+     * @throws ValidationException
+     */
+    private function resolveNoneFlags(PMSchedule $pmSchedule, array $data): array
+    {
+        $noProblem = filter_var($data['no_problem'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $noSparepart = filter_var($data['no_sparepart'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $filledProblems = collect($data['problems'] ?? [])
+            ->filter(fn ($row) => ! empty($row['problem']));
+
+        $filledSpareparts = collect($data['spareparts'] ?? [])
+            ->filter(fn ($row) => ! empty($row['sparepart_id']));
+
+        $errors = [];
+
+        if ($noProblem && $filledProblems->isNotEmpty()) {
+            $errors['no_problem'] = 'Remove the problem rows or untick "No problem found".';
+        }
+
+        if ($noSparepart && $filledSpareparts->isNotEmpty()) {
+            $errors['no_sparepart'] = 'Remove the sparepart rows or untick "No sparepart used".';
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        if ($noSparepart && $pmSchedule->spareparts()->where('source', PMSparepart::SOURCE_WAREHOUSE)->exists()) {
+            $noSparepart = false;
+        }
+
+        return [$noProblem, $noSparepart];
     }
 }

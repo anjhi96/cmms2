@@ -63,7 +63,7 @@ class PMChecklistSaveService
             $errors[] = 'End Time';
         }
 
-        if (! $pmSchedule->problems()->exists()) {
+        if (! $pmSchedule->no_problem && ! $pmSchedule->problems()->exists()) {
             $errors[] = 'Problem';
         }
 
@@ -76,7 +76,7 @@ class PMChecklistSaveService
             $errors[] = 'Measurement (nilai actual belum diisi)';
         }
 
-        if (! $pmSchedule->spareparts()->exists()) {
+        if (! $pmSchedule->no_sparepart && ! $pmSchedule->spareparts()->exists()) {
             $errors[] = 'Sparepart';
         }
 

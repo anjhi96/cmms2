@@ -278,9 +278,21 @@
 
         <div class="bg-white rounded-xl shadow p-6 mb-6 max-sm:p-4">
 
-            <h3 class="text-lg font-semibold mb-6">
+            <h3 class="text-lg font-semibold mb-4">
                 PM Result
             </h3>
+
+            <label class="mb-4 flex items-center gap-2 text-sm">
+                <input type="checkbox" name="no_problem" value="1" class="h-4 w-4 rounded"
+                    data-none-toggle="problem-entry" @checked(session()->hasOldInput() ? old('no_problem') : $pmSchedule->no_problem)>
+                No problem found during this PM
+            </label>
+
+            @error('no_problem')
+                <p class="mb-3 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+
+            <div id="problem-entry">
             <div id="problem-wrapper">
 
                 @foreach ($pmProblems as $i => $oldProblem)
@@ -335,6 +347,7 @@
                 class="mt-2 bg-green-600 text-white px-3 py-1 rounded-xl max-sm:w-full max-sm:py-2">
                 + Add Problem
             </button>
+            </div>
 
         </div>
 
@@ -460,6 +473,20 @@
                 Sparepart Usage
             </h2>
 
+            {{-- Warehouse-injected usage is real usage, so "none used" is not offered then. --}}
+            @unless ($pmSpareparts->contains(fn ($spare) => $spare->isFromWarehouse()))
+                <label class="mb-4 flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="no_sparepart" value="1" class="h-4 w-4 rounded"
+                        data-none-toggle="sparepart-entry" @checked(session()->hasOldInput() ? old('no_sparepart') : $pmSchedule->no_sparepart)>
+                    No sparepart used during this PM
+                </label>
+            @endunless
+
+            @error('no_sparepart')
+                <p class="mb-3 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+
+            <div id="sparepart-entry">
             @if (! empty($mandatoryPrefilled))
                 <p class="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
                     Mandatory spareparts for {{ $pmSchedule->machine_type }} are pre-filled below. They are only
@@ -512,6 +539,7 @@
                 class="mt-2 bg-green-600 text-white px-3 py-1 rounded-xl max-sm:w-full max-sm:py-2">
                 + Add Sparepart
             </button>
+            </div>
 
         </div>
 

@@ -1,11 +1,155 @@
 {
+  "_barlow-400-normal-BFeobeCK.woff": {
+    "file": "assets/barlow-400-normal-BFeobeCK.woff",
+    "src": "_barlow-400-normal-BFeobeCK.woff"
+  },
+  "_barlow-400-normal-CvBsJvxq.woff": {
+    "file": "assets/barlow-400-normal-CvBsJvxq.woff",
+    "src": "_barlow-400-normal-CvBsJvxq.woff"
+  },
+  "_barlow-400-normal-Dpl4UHAZ.woff2": {
+    "file": "assets/barlow-400-normal-Dpl4UHAZ.woff2",
+    "src": "_barlow-400-normal-Dpl4UHAZ.woff2"
+  },
+  "_barlow-400-normal-HxX4XjxC.woff2": {
+    "file": "assets/barlow-400-normal-HxX4XjxC.woff2",
+    "src": "_barlow-400-normal-HxX4XjxC.woff2"
+  },
+  "_barlow-400-normal-fsAxiSwU.woff": {
+    "file": "assets/barlow-400-normal-fsAxiSwU.woff",
+    "src": "_barlow-400-normal-fsAxiSwU.woff"
+  },
+  "_barlow-400-normal-qiz4-Cze.woff2": {
+    "file": "assets/barlow-400-normal-qiz4-Cze.woff2",
+    "src": "_barlow-400-normal-qiz4-Cze.woff2"
+  },
+  "_barlow-500-normal-BPAOfeC8.woff2": {
+    "file": "assets/barlow-500-normal-BPAOfeC8.woff2",
+    "src": "_barlow-500-normal-BPAOfeC8.woff2"
+  },
+  "_barlow-500-normal-C1h8hMer.woff": {
+    "file": "assets/barlow-500-normal-C1h8hMer.woff",
+    "src": "_barlow-500-normal-C1h8hMer.woff"
+  },
+  "_barlow-500-normal-CJPcKP2Q.woff": {
+    "file": "assets/barlow-500-normal-CJPcKP2Q.woff",
+    "src": "_barlow-500-normal-CJPcKP2Q.woff"
+  },
+  "_barlow-500-normal-DOaysfXq.woff2": {
+    "file": "assets/barlow-500-normal-DOaysfXq.woff2",
+    "src": "_barlow-500-normal-DOaysfXq.woff2"
+  },
+  "_barlow-500-normal-GNfB7rCE.woff": {
+    "file": "assets/barlow-500-normal-GNfB7rCE.woff",
+    "src": "_barlow-500-normal-GNfB7rCE.woff"
+  },
+  "_barlow-500-normal-zTViEIzf.woff2": {
+    "file": "assets/barlow-500-normal-zTViEIzf.woff2",
+    "src": "_barlow-500-normal-zTViEIzf.woff2"
+  },
+  "_barlow-600-normal-B8NK_A3D.woff2": {
+    "file": "assets/barlow-600-normal-B8NK_A3D.woff2",
+    "src": "_barlow-600-normal-B8NK_A3D.woff2"
+  },
+  "_barlow-600-normal-CA_GiK2e.woff": {
+    "file": "assets/barlow-600-normal-CA_GiK2e.woff",
+    "src": "_barlow-600-normal-CA_GiK2e.woff"
+  },
+  "_barlow-600-normal-CNwfPWQD.woff": {
+    "file": "assets/barlow-600-normal-CNwfPWQD.woff",
+    "src": "_barlow-600-normal-CNwfPWQD.woff"
+  },
+  "_barlow-600-normal-DILqtrty.woff2": {
+    "file": "assets/barlow-600-normal-DILqtrty.woff2",
+    "src": "_barlow-600-normal-DILqtrty.woff2"
+  },
+  "_barlow-600-normal-DMVRjfRT.woff": {
+    "file": "assets/barlow-600-normal-DMVRjfRT.woff",
+    "src": "_barlow-600-normal-DMVRjfRT.woff"
+  },
+  "_barlow-600-normal-DcjprdFV.woff2": {
+    "file": "assets/barlow-600-normal-DcjprdFV.woff2",
+    "src": "_barlow-600-normal-DcjprdFV.woff2"
+  },
+  "_barlow-semi-condensed-500-normal-BXdp1BvY.woff2": {
+    "file": "assets/barlow-semi-condensed-500-normal-BXdp1BvY.woff2",
+    "src": "_barlow-semi-condensed-500-normal-BXdp1BvY.woff2"
+  },
+  "_barlow-semi-condensed-500-normal-CFOoVYFH.woff": {
+    "file": "assets/barlow-semi-condensed-500-normal-CFOoVYFH.woff",
+    "src": "_barlow-semi-condensed-500-normal-CFOoVYFH.woff"
+  },
+  "_barlow-semi-condensed-500-normal-DGADhYWF.woff2": {
+    "file": "assets/barlow-semi-condensed-500-normal-DGADhYWF.woff2",
+    "src": "_barlow-semi-condensed-500-normal-DGADhYWF.woff2"
+  },
+  "_barlow-semi-condensed-500-normal-G0uxJNrM.woff2": {
+    "file": "assets/barlow-semi-condensed-500-normal-G0uxJNrM.woff2",
+    "src": "_barlow-semi-condensed-500-normal-G0uxJNrM.woff2"
+  },
+  "_barlow-semi-condensed-500-normal-hJ2t9k9e.woff": {
+    "file": "assets/barlow-semi-condensed-500-normal-hJ2t9k9e.woff",
+    "src": "_barlow-semi-condensed-500-normal-hJ2t9k9e.woff"
+  },
+  "_barlow-semi-condensed-500-normal-rZeYuEMb.woff": {
+    "file": "assets/barlow-semi-condensed-500-normal-rZeYuEMb.woff",
+    "src": "_barlow-semi-condensed-500-normal-rZeYuEMb.woff"
+  },
+  "_barlow-semi-condensed-600-normal-BkLiAYu4.woff2": {
+    "file": "assets/barlow-semi-condensed-600-normal-BkLiAYu4.woff2",
+    "src": "_barlow-semi-condensed-600-normal-BkLiAYu4.woff2"
+  },
+  "_barlow-semi-condensed-600-normal-BkQ9hN72.woff2": {
+    "file": "assets/barlow-semi-condensed-600-normal-BkQ9hN72.woff2",
+    "src": "_barlow-semi-condensed-600-normal-BkQ9hN72.woff2"
+  },
+  "_barlow-semi-condensed-600-normal-BuP8AaxH.woff": {
+    "file": "assets/barlow-semi-condensed-600-normal-BuP8AaxH.woff",
+    "src": "_barlow-semi-condensed-600-normal-BuP8AaxH.woff"
+  },
+  "_barlow-semi-condensed-600-normal-DyOfdMBA.woff": {
+    "file": "assets/barlow-semi-condensed-600-normal-DyOfdMBA.woff",
+    "src": "_barlow-semi-condensed-600-normal-DyOfdMBA.woff"
+  },
+  "_barlow-semi-condensed-600-normal-DzVrjA0Q.woff": {
+    "file": "assets/barlow-semi-condensed-600-normal-DzVrjA0Q.woff",
+    "src": "_barlow-semi-condensed-600-normal-DzVrjA0Q.woff"
+  },
+  "_barlow-semi-condensed-600-normal-b1FQiZcx.woff2": {
+    "file": "assets/barlow-semi-condensed-600-normal-b1FQiZcx.woff2",
+    "src": "_barlow-semi-condensed-600-normal-b1FQiZcx.woff2"
+  },
+  "_barlow-semi-condensed-700-normal-BMyZXq_9.woff": {
+    "file": "assets/barlow-semi-condensed-700-normal-BMyZXq_9.woff",
+    "src": "_barlow-semi-condensed-700-normal-BMyZXq_9.woff"
+  },
+  "_barlow-semi-condensed-700-normal-BhgEo64M.woff2": {
+    "file": "assets/barlow-semi-condensed-700-normal-BhgEo64M.woff2",
+    "src": "_barlow-semi-condensed-700-normal-BhgEo64M.woff2"
+  },
+  "_barlow-semi-condensed-700-normal-BpqDG8I9.woff2": {
+    "file": "assets/barlow-semi-condensed-700-normal-BpqDG8I9.woff2",
+    "src": "_barlow-semi-condensed-700-normal-BpqDG8I9.woff2"
+  },
+  "_barlow-semi-condensed-700-normal-BvUTSFNY.woff": {
+    "file": "assets/barlow-semi-condensed-700-normal-BvUTSFNY.woff",
+    "src": "_barlow-semi-condensed-700-normal-BvUTSFNY.woff"
+  },
+  "_barlow-semi-condensed-700-normal-C0vCoZIV.woff": {
+    "file": "assets/barlow-semi-condensed-700-normal-C0vCoZIV.woff",
+    "src": "_barlow-semi-condensed-700-normal-C0vCoZIV.woff"
+  },
+  "_barlow-semi-condensed-700-normal-Dm7RZTvf.woff2": {
+    "file": "assets/barlow-semi-condensed-700-normal-Dm7RZTvf.woff2",
+    "src": "_barlow-semi-condensed-700-normal-Dm7RZTvf.woff2"
+  },
   "_chunk-QTnfLwEv.js": {
     "file": "assets/chunk-QTnfLwEv.js",
     "name": "chunk"
   },
-  "_fonts-DkuEHybc.css": {
-    "file": "assets/fonts-DkuEHybc.css",
-    "src": "_fonts-DkuEHybc.css"
+  "_fonts-BYBrZtvZ.css": {
+    "file": "assets/fonts-BYBrZtvZ.css",
+    "src": "_fonts-BYBrZtvZ.css"
   },
   "_instrument-sans-400-normal-D1W7dsQl.woff": {
     "file": "assets/instrument-sans-400-normal-D1W7dsQl.woff",
@@ -56,7 +200,7 @@
     "src": "_instrument-sans-600-normal-DMks36a2.woff"
   },
   "resources/css/app.css": {
-    "file": "assets/app-CwwoGXFD.css",
+    "file": "assets/app-D9dXVY0p.css",
     "name": "app",
     "names": [
       "app.css"
