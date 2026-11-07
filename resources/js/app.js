@@ -9,6 +9,7 @@ import './oil-audits/follow-up';
 import './oil-audits/action';
 import './pm-status/override';
 import './pm-status/load-month';
+import './weekly-plan/board';
 import './infinite-scroll';
 
 import './offline/syncUi.js';

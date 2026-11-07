@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * `areaMaster()` relation below gives read access to the master row without
  * touching that existing column or its indexes.
  */
-
 class Machine extends Model
 {
     protected $fillable = [

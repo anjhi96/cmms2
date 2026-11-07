@@ -24,6 +24,8 @@ use App\Http\Controllers\OilAuditReportController;
 use App\Http\Controllers\PMReportController;
 use App\Http\Controllers\PMScheduleController;
 use App\Http\Controllers\PMStatusBoardController;
+use App\Http\Controllers\PredictiveController;
+use App\Http\Controllers\PredictiveOptionController;
 use App\Http\Controllers\ProblemReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrScannerController;
@@ -35,6 +37,7 @@ use App\Http\Controllers\SyncOperationController;
 use App\Http\Controllers\TodayActivityController;
 use App\Http\Controllers\TodayActivityMonitorController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WeeklyPlanController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
@@ -168,6 +171,19 @@ Route::middleware([
 
     Route::resource('machine-maintenance-requirements', MachineMaintenanceRequirementController::class)
         ->except(['show']);
+});
+
+// Weekly PM Plan: Monday-Friday plan per area, composed into the production
+// email. Area access is checked inside WeeklyPlanController (User::hasArea).
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR'])->prefix('weekly-plan')->name('weekly-plan.')->group(function () {
+    Route::get('/', [WeeklyPlanController::class, 'index'])->name('index');
+    Route::get('/{area}/{week}', [WeeklyPlanController::class, 'show'])->name('show');
+    Route::put('/plans/{plan}/items', [WeeklyPlanController::class, 'saveItems'])->name('items.save')->whereNumber('plan');
+    Route::put('/plans/{plan}/day-limits', [WeeklyPlanController::class, 'saveDayLimits'])->name('day-limits.save')->whereNumber('plan');
+    Route::post('/plans/{plan}/autofill', [WeeklyPlanController::class, 'autofill'])->name('autofill')->whereNumber('plan');
+    Route::get('/plans/{plan}/pic-sync', [WeeklyPlanController::class, 'picSyncPreview'])->name('pic-sync.preview')->whereNumber('plan');
+    Route::post('/plans/{plan}/pic-sync', [WeeklyPlanController::class, 'picSyncApply'])->name('pic-sync.apply')->whereNumber('plan');
+    Route::post('/plans/{plan}/mark-sent', [WeeklyPlanController::class, 'markSent'])->name('mark-sent')->whereNumber('plan');
 });
 
 // Machine QR Management (Master): QR Code Management + Last PM Override.
@@ -311,6 +327,40 @@ Route::middleware([
     Route::delete('/oil-audits/{oilAudit}/follow-up', [OilAuditController::class, 'destroyFollowUp'])->name('oil-audits.follow-up.destroy');
 
     Route::get('/reports/oil-audit', [OilAuditReportController::class, 'index'])->name('reports.oil-audit');
+});
+
+// Action Predictive (Vibration / Air Leaked WOs + dashboard). Every role that
+// can see the module is listed here; SUPERVISOR is view-only through
+// RoleMiddleware (only predictive.index / predictive.show are GET pages with
+// the .index/.show suffix). Area scope and per-action rights (claim = PIC,
+// action = the claiming PIC, reopen = ADMIN or KOORDINATOR, create/edit/delete/import = ADMIN or
+// KOORDINATOR of the area) are enforced again inside PredictiveController and
+// PredictiveWorkOrder, so a forged URL or POST cannot cross areas.
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,PIC,SUPERVISOR'])->prefix('predictive')->name('predictive.')->group(function () {
+    Route::get('/', [PredictiveController::class, 'index'])->name('index');
+    Route::get('/machines', [PredictiveController::class, 'machines'])->name('machines');
+    Route::post('/work-orders', [PredictiveController::class, 'store'])->name('store');
+    Route::post('/import', [PredictiveController::class, 'import'])->name('import');
+    Route::get('/work-orders/{workOrder}', [PredictiveController::class, 'show'])->name('show')->whereNumber('workOrder');
+    Route::put('/work-orders/{workOrder}', [PredictiveController::class, 'update'])->name('update')->whereNumber('workOrder');
+    Route::delete('/work-orders/{workOrder}', [PredictiveController::class, 'destroy'])->name('destroy')->whereNumber('workOrder');
+    Route::post('/work-orders/{workOrder}/claim', [PredictiveController::class, 'claim'])->name('claim')->whereNumber('workOrder');
+    Route::post('/work-orders/{workOrder}/action', [PredictiveController::class, 'storeAction'])->name('action')->whereNumber('workOrder');
+    Route::post('/work-orders/{workOrder}/reopen', [PredictiveController::class, 'reopen'])->name('reopen')->whereNumber('workOrder');
+});
+
+// Predictive Problem / Finding master (one list per category and area).
+// ADMIN manages every area, KOORDINATOR only their own (re-checked per write
+// in PredictiveOptionController). SUPERVISOR, PIC and GUEST are not in this group.
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR'])->prefix('predictive/master')->name('predictive.master.')->group(function () {
+    Route::get('/', [PredictiveOptionController::class, 'index'])->name('index');
+    Route::post('/import', [PredictiveOptionController::class, 'import'])->name('import');
+    Route::post('/problems', [PredictiveOptionController::class, 'storeProblem'])->name('problems.store');
+    Route::put('/problems/{problem}', [PredictiveOptionController::class, 'updateProblem'])->name('problems.update')->whereNumber('problem');
+    Route::delete('/problems/{problem}', [PredictiveOptionController::class, 'destroyProblem'])->name('problems.destroy')->whereNumber('problem');
+    Route::post('/problems/{problem}/findings', [PredictiveOptionController::class, 'storeFinding'])->name('findings.store')->whereNumber('problem');
+    Route::put('/findings/{finding}', [PredictiveOptionController::class, 'updateFinding'])->name('findings.update')->whereNumber('finding');
+    Route::delete('/findings/{finding}', [PredictiveOptionController::class, 'destroyFinding'])->name('findings.destroy')->whereNumber('finding');
 });
 
 require __DIR__.'/settings.php';

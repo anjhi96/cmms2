@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class MachineProblem extends Model
 {
     protected $fillable = [
-    'machine_type',
-    'category',
-    'problem',
+        'machine_type',
+        'category',
+        'problem',
 
-];
+    ];
 
     // Semua finding yang dimiliki category ini
     public function findings()

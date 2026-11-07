@@ -7,20 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 class Sparepart extends Model
 {
     protected $fillable = [
-    'material_number',
-    'location',
-    'description',
-    'remarks',
-    'stock',
-    'unit',
-    'rop',
-    'mrp_type',
-    'price',
-    'status',
-    'machine_type',
-    'segment',
-    'pdt'
-];
+        'material_number',
+        'location',
+        'description',
+        'remarks',
+        'stock',
+        'unit',
+        'rop',
+        'mrp_type',
+        'price',
+        'status',
+        'machine_type',
+        'segment',
+        'pdt',
+    ];
 
     public function pmSchedule()
     {

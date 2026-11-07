@@ -37,6 +37,7 @@
             str_contains($routeName, 'reports.machine') => 'Machine Report',
             str_contains($routeName, 'reports.problem') => 'Problem Analysis Report',
             str_contains($routeName, 'reports.cost') => 'Maintenance Cost Report',
+            str_contains($routeName, 'predictive') => 'Action Predictive',
             str_contains($routeName, 'greasings') => 'Greasing Schedule',
             str_contains($routeName, 'spareparts') => 'Spareparts',
             str_contains($routeName, 'machine-measurements') => 'Measurements',

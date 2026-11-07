@@ -194,6 +194,46 @@
             </div>
 
 
+
+            <div class="bg-white shadow rounded-lg p-6">
+
+                <h2 class="font-semibold text-lg">
+                    Predictive Work Order
+                </h2>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Template import WO Action Predictive Vibration dan Air Leaked (Order Number, Machine Number, Date, Problem Description). Area dan Machine Type diambil dari Machine Master. Due Date dihitung otomatis: Date + 14 hari.
+                </p>
+
+
+                <a href="{{ route('import-templates.download', 'predictive-work-order') }}"
+                    class="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded">
+
+                    Download Template
+
+                </a>
+
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+
+                <h2 class="font-semibold text-lg">
+                    Predictive Problem dan Finding
+                </h2>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Template import pilihan Problem dan Finding untuk form Action Predictive (Category, Area, Problem, Finding). Category: VIBRATION atau AIR_LEAKED. Ulangi Problem di baris berikutnya untuk menambah Finding.
+                </p>
+
+
+                <a href="{{ route('import-templates.download', 'predictive-problem-finding') }}"
+                    class="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded">
+
+                    Download Template
+
+                </a>
+
+            </div>
         </div>
 
     </div>

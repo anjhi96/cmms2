@@ -82,6 +82,7 @@ document.addEventListener('alpine:init', () => {
         $dashboardActive = request()->routeIs('dashboard');
         $todayActivityActive = request()->routeIs('today-activity.*');
         $pmScheduleActive = request()->routeIs('pm-schedules.*');
+        $weeklyPlanActive = request()->routeIs('weekly-plan.*');
         $emailNotificationActive = request()->routeIs('email-notifications.*');
         $backupActive = request()->routeIs('backup.*');
         $importTemplateActive = request()->routeIs('import-templates');
@@ -91,6 +92,8 @@ document.addEventListener('alpine:init', () => {
         $problemFindingsActive = request()->routeIs('machine-problem-findings.*');
         $oilAuditActive = request()->routeIs('oil-audits.scan');
         $oilAuditActionActive = request()->routeIs('oil-audits.report');
+        $predictiveMasterActive = request()->routeIs('predictive.master.*');
+        $predictiveActive = request()->routeIs('predictive.*') && ! $predictiveMasterActive;
         $greasingActive = request()->routeIs('greasings.*');
         $profileActive = request()->routeIs('profile.*');
 
@@ -114,8 +117,8 @@ document.addEventListener('alpine:init', () => {
         $machineHistoryActive = request()->routeIs('machine-history.*') && ! $cameFromReportPm && ! $cameFromReportMachine;
         @endphp
         <nav class="flex-1 overflow-y-auto px-3 py-4 text-sm" x-data="{
-            openGroup: '{{ $dashboardActive || $todayActivityActive || $pmScheduleActive || $oilAuditActive || $oilAuditActionActive || $greasingActive ? 'main' :
-                        ($machineActive || $machineQrActive || $groupActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive ? 'master' :
+            openGroup: '{{ $dashboardActive || $todayActivityActive || $pmScheduleActive || $weeklyPlanActive || $oilAuditActive || $oilAuditActionActive || $predictiveActive || $greasingActive ? 'main' :
+                        ($machineActive || $machineQrActive || $groupActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive || $predictiveMasterActive ? 'master' :
                         ($machineHistoryActive || $reportActive ? 'report' : 'system')) }}',
             openSubmenu: '{{ $reportActive ? 'reports' : '' }}'
         }">
@@ -165,6 +168,21 @@ document.addEventListener('alpine:init', () => {
             $isAdmin || $isKoordinator || $isPic || $isSupervisor,
             ],
             [
+            'route' => route('weekly-plan.index'),
+            'label' => 'Planning PM Mingguan',
+            'active' => $weeklyPlanActive,
+            // calendar-range: a Monday-Friday span
+            'icon' => '
+            <rect width="18" height="18" x="3" y="4" rx="2" />
+            <path d="M16 2v4" />
+            <path d="M8 2v4" />
+            <path d="M3 10h18" />
+            <path d="M7 14h10" />
+            <path d="M7 18h6" />',
+            'visible' =>
+            $isAdmin || $isKoordinator || $isSupervisor,
+            ],
+            [
             'route' => route('oil-audits.scan'),
             'label' => 'Audit Oli',
             'active' =>
@@ -186,6 +204,16 @@ document.addEventListener('alpine:init', () => {
             <path d="m9 14 2 2 4-4" />',
             'visible' =>
             $hasWwdArea,
+            ],
+            [
+            'route' => route('predictive.index'),
+            'label' => 'Action Predictive',
+            'active' => $predictiveActive,
+            // activity (vibration waveform)
+            'icon' => '
+            <path d="M2 12h3l2-7 4 14 3-10 2 3h6" />',
+            'visible' =>
+            $isAdmin || $isKoordinator || $isPic || $isSupervisor,
             ],
             [
             'route' => route('greasings.index'),
@@ -409,6 +437,20 @@ document.addEventListener('alpine:init', () => {
             <path d="M12 17h.01" />',
             'visible' =>
             $isAdmin || $isKoordinator || $isSupervisor,
+            ],
+            [
+            'route' => route('predictive.master.index'),
+            'label' => 'Predictive Problem',
+            'active' => $predictiveMasterActive,
+            // list-checks (standard choices)
+            'icon' => '
+            <path d="m3 17 2 2 4-4" />
+            <path d="m3 7 2 2 4-4" />
+            <path d="M13 6h8" />
+            <path d="M13 12h8" />
+            <path d="M13 18h8" />',
+            'visible' =>
+            $isAdmin || $isKoordinator,
             ],
             [
             'route' => route('machine-problem-findings.index'),

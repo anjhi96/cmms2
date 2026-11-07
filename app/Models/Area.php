@@ -53,6 +53,14 @@ class Area extends Model
         return $query->where('is_active', true);
     }
 
+    /** Canonical name of the active area matching the given text (ignoring case and spaces), or null. */
+    public static function matching(string $name): ?string
+    {
+        $needle = mb_strtolower(trim($name));
+
+        return $needle === '' ? null : static::active()->pluck('name')->first(fn ($n) => mb_strtolower($n) === $needle);
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PMMeasurement extends Model
 {
     protected $table = 'pm_measurements';
+
     protected $fillable = [
         'pm_schedule_id',
         'machine_measurement_id',

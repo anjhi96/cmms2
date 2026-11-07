@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PMChecklist extends Model
 {
     protected $table = 'pm_checklists';
+
     protected $fillable = [
 
         'pm_schedule_id',
@@ -69,5 +70,4 @@ class PMChecklist extends Model
 
         return $results;
     }
-
 }
