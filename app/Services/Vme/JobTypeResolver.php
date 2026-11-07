@@ -8,7 +8,7 @@ use Throwable;
 
 /**
  * Maps an activity to a job type key. Fixed sources (PM, Greasing, Oil Audit,
- * Oil Audit Action) have a fixed key; Manual Activity names are matched
+ * Oil Audit Action, Action Predictive) have a fixed key; Manual Activity names are matched
  * against job_type_aliases (exact first, then the alias as a whole word or
  * phrase inside the text, longest alias wins). Never throws: the Today Activity resolver calls this, so any
  * failure degrades to the generic 'manual' key.
@@ -20,6 +20,8 @@ class JobTypeResolver
         'GREASING' => JobType::KEY_GREASING,
         'OIL_AUDIT' => JobType::KEY_OIL_AUDIT,
         'OIL_AUDIT_ACTION' => JobType::KEY_OIL_AUDIT_ACTION,
+        'PREDICTIVE' => JobType::KEY_PREDICTIVE,
+        'SMALL_PM' => JobType::KEY_CLEANING,
     ];
 
     /** @var list<array{alias: string, key: string}>|null */

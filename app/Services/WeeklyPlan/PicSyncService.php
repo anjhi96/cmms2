@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Copies the weekly plan's PICs into pm_schedules.pic on request (the
  * "Terapkan PIC ke PM Schedule" button). Can run any number of times; each
- * run brings PM Schedule in line with the plan as it is now:
+ * run brings PM Schedule in line with the plan as it is now. Taking a
+ * machine out of the plan restores its PIC immediately on save (see
+ * releaseRemoved()), without waiting for the button.
  *
  *  - a planned machine with a PIC gets that PIC;
  *  - a machine this plan assigned earlier but that is no longer planned (or
@@ -104,9 +106,31 @@ class PicSyncService
     /** @return array{set: int, replace: int, restore: int, locked: int, changed: int, pending: int} */
     public function apply(WeeklyPmPlan $plan): array
     {
-        return DB::transaction(function () use ($plan) {
+        return $this->run($plan, ['set', 'replace', 'restore', 'locked', 'changed']);
+    }
+
+    /**
+     * Runs right after every save of the plan: a machine that left the plan
+     * (or whose PIC was cleared in it) gets its PM Schedule PIC back at once.
+     * Writing new PICs still waits for the "Terapkan PIC" button.
+     *
+     * @return int number of PM Schedule PICs restored
+     */
+    public function releaseRemoved(WeeklyPmPlan $plan): int
+    {
+        if (empty($plan->applied_pics)) {
+            return 0;
+        }
+
+        return $this->run($plan, ['restore', 'changed'], touchAppliedAt: false)['restore'];
+    }
+
+    /** @param  list<string>  $kinds  which preview actions to carry out */
+    private function run(WeeklyPmPlan $plan, array $kinds, bool $touchAppliedAt = true): array
+    {
+        return DB::transaction(function () use ($plan, $kinds, $touchAppliedAt) {
             $plan->load('items.pmSchedule');
-            $actions = $this->preview($plan);
+            $actions = array_values(array_filter($this->preview($plan), fn ($a) => in_array($a['kind'], $kinds, true)));
             $applied = $plan->applied_pics ?? [];
 
             foreach ($actions as $action) {
@@ -125,7 +149,9 @@ class PicSyncService
                 }
             }
 
-            $plan->update(['applied_pics' => $applied, 'pics_applied_at' => now()]);
+            $plan->update($touchAppliedAt
+                ? ['applied_pics' => $applied, 'pics_applied_at' => now()]
+                : ['applied_pics' => $applied]);
 
             return $this->summary($actions);
         });

@@ -32,7 +32,7 @@
         $inputClass = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100';
     @endphp
 
-    <div x-data="{ addOpen: {{ old('_form') === 'add' ? 'true' : 'false' }}, importOpen: {{ $errors->has('file') ? 'true' : 'false' }}, action: @js($reopenedAction), edit: @js($reopenedEdit) }">
+    <div x-data="{ promptOpen: @json($promptStart), startOpen: false, startAt: '', openStart() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); this.startAt = d.toISOString().slice(0, 16); this.promptOpen = false; this.startOpen = true; }, addOpen: {{ old('_form') === 'add' ? 'true' : 'false' }}, importOpen: {{ $errors->has('file') ? 'true' : 'false' }}, action: @js($reopenedAction), edit: @js($reopenedEdit) }">
         <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Action Predictive</h1>
@@ -46,7 +46,7 @@
             @endif
         </div>
 
-        <nav class="mb-5 flex overflow-x-auto border-b sm:gap-1 border-slate-200" aria-label="Tab Action Predictive">
+        <nav class="mb-5 flex overflow-x-auto overflow-y-hidden border-b border-slate-200 pb-px sm:gap-1" aria-label="Tab Action Predictive">
             @foreach ($tabs as $key => $t)
                 @php $active = $tab === $key; @endphp
                 <a href="{{ route('predictive.index', ['tab' => $key]) }}" @if ($active) aria-current="page" @endif
@@ -72,6 +72,13 @@
                 <div class="mb-4 rounded-xl border px-4 py-3 text-sm font-medium {{ $classes }}" role="{{ $flash === 'error' ? 'alert' : 'status' }}">{{ session($flash) }}</div>
             @endif
         @endforeach
+
+        @if (auth()->user()->isPic() && ! $canWork)
+            <div class="mb-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <p>Aktivitas Action Predictive belum dimulai. Claim dan Action aktif setelah Anda memulainya.</p>
+                <button type="button" @click="openStart()" class="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Start Predictive</button>
+            </div>
+        @endif
 
         @if (session('predictive_import_result'))
             @include('predictive.partials.import-result')
@@ -162,5 +169,43 @@
         @endif
 
         @include('predictive.partials.action-modal')
+
+        @if (auth()->user()->isPic())
+            {{-- Daily Start prompt, same flow as Oil Audit Action: NO only closes it (the banner above stays), YES asks for the start time. --}}
+            @if ($promptStart)
+            <div x-show="promptOpen" x-cloak x-transition.opacity.duration.150ms @keydown.escape.window="promptOpen = false"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="predictive-prompt-title">
+                <div class="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+                    <h3 id="predictive-prompt-title" class="text-lg font-semibold text-slate-800">APAKAH ANDA INGIN MEMULAI ACTION PREDICTIVE?</h3>
+                    <p class="mt-2 text-sm text-slate-500">Aktivitas ini tercatat di Today's Activity. Tanpa memulainya, Anda belum bisa Claim maupun mengisi Action.</p>
+                    <div class="mt-5 flex justify-center gap-3">
+                        <button type="button" @click="promptOpen = false" class="min-h-11 rounded-lg border border-slate-300 px-6 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">NO</button>
+                        <button type="button" @click="openStart()" class="min-h-11 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700">YES</button>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            <div x-show="startOpen" x-cloak x-transition.opacity.duration.150ms @keydown.escape.window="startOpen = false"
+                class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="predictive-start-title">
+                <div @click.outside="startOpen = false" class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+                    <h3 id="predictive-start-title" class="text-lg font-semibold text-slate-800">Start Action Predictive Activity</h3>
+                    <form method="POST" action="{{ route('predictive.start') }}" class="mt-4 space-y-4" x-data="{ busy: false }" @submit="busy = true">
+                        @csrf
+                        <div>
+                            <label for="predictive-start-at" class="mb-1 block text-sm font-medium text-slate-700">Start Date &amp; Time</label>
+                            <input id="predictive-start-at" type="datetime-local" name="started_at" x-model="startAt" required
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100">
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" @click="startOpen = false" class="min-h-11 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">Cancel</button>
+                            <button type="submit" x-bind:disabled="busy" class="min-h-11 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">START</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        @endif
     </div>
+
+    @include('partials.activity-conflict-modal')
 @endsection

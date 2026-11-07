@@ -28,6 +28,13 @@
     <div x-data="{ action: @js($reopenedAction), edit: @js($reopenedEdit) }">
         <a href="{{ route('predictive.index', ['tab' => $tab]) }}" class="mb-4 inline-flex min-h-11 items-center text-sm font-semibold text-sky-700 hover:underline">&larr; Kembali ke daftar WO</a>
 
+        @if (auth()->user()->isPic() && ! $canWork)
+            <div class="mb-4 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <p>Aktivitas Action Predictive belum dimulai, jadi Claim dan Action nonaktif.</p>
+                <a href="{{ route('predictive.index', ['tab' => $tab]) }}" class="inline-flex min-h-11 shrink-0 items-center font-semibold text-sky-700 hover:underline">Buka daftar WO untuk memulai</a>
+            </div>
+        @endif
+
         @foreach ([
             'success' => 'border-emerald-200 bg-emerald-50 text-emerald-800',
             'error' => 'border-rose-200 bg-rose-50 text-rose-800',

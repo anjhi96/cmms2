@@ -7,6 +7,8 @@ use App\Models\Greasing;
 use App\Models\Machine;
 use App\Models\ManualActivity;
 use App\Models\PMSchedule;
+use App\Models\SmallPmRow;
+use App\Models\SmallPmSchedule;
 use App\Models\User;
 use App\Services\Vme\JobTypeResolver;
 use App\Support\Activities\ActiveActivity;
@@ -24,8 +26,10 @@ use Illuminate\Support\Collection;
  *   PM               pm_schedules.start_time (the column START PM writes) with
  *                    actual_date = today, status not finished
  *   Greasing         greasings.start_time (timestamp), started today, status not finished
+ *   Small PM         small_pm_schedules.start_time, started today, status not finished
  *   Oil Audit        users.oil_audit_started_at (daily marker, today)
  *   Oil Audit Action users.oil_audit_action_started_at (daily marker, today)
+ *   Action Predictive users.predictive_started_at (daily marker, today)
  *   Manual Activity  manual_activities.started_at (owned by the user, today)
  *
  * "Started today" is enforced at SQL level against the source's real START
@@ -50,6 +54,9 @@ class ActiveActivityResolver
 {
     private ?JobTypeResolver $jobTypes = null;
 
+    /** @var array<int, int>|null user id => index, PICs with Small PM in progress today */
+    private ?array $smallPmPicIds = null;
+
     private function jobTypeKey(string $source, ?string $name = null): string
     {
         return ($this->jobTypes ??= new JobTypeResolver)->keyFor($source, $name);
@@ -70,8 +77,10 @@ class ActiveActivityResolver
         return collect([
             ...$this->pmActivities($user, $closures),
             ...$this->greasingActivities($user, $closures),
+            ...$this->smallPmActivities($user, $closures),
             ...$this->oilAuditActivity($user, $closures),
             ...$this->oilAuditActionActivity($user, $closures),
+            ...$this->predictiveActivity($user, $closures),
             ...$this->manualActivities($user, $closures),
         ])
             ->sortByDesc(fn (ActiveActivity $a) => $a->startedAt->getTimestamp())
@@ -190,6 +199,61 @@ class ActiveActivityResolver
     }
 
     /**
+     * Small PM is row-level like Greasing, but the PIC is stored by user id.
+     *
+     * @param  Collection<string, CarbonInterface>  $closures
+     * @return array<int, ActiveActivity>
+     */
+    private function smallPmActivities(User $user, Collection $closures): array
+    {
+        // The monitor resolves every PIC with one resolver instance: one
+        // lookup of who has Small PM running today saves a query per PIC.
+        $this->smallPmPicIds ??= SmallPmSchedule::query()
+            ->activeActivity()
+            ->whereDate('start_time', today())
+            ->distinct()
+            ->pluck('pic_user_id')
+            ->map(fn ($id) => (int) $id)
+            ->flip()
+            ->all();
+
+        if (! isset($this->smallPmPicIds[$user->id])) {
+            return [];
+        }
+
+        return SmallPmSchedule::query()
+            ->activeActivity()
+            ->where('pic_user_id', $user->id)
+            ->whereDate('start_time', today())
+            ->with(['row:id,name,area_id', 'row.machines:id,small_pm_row_id'])
+            ->get()
+            ->map(function (SmallPmSchedule $schedule) use ($user, $closures): ?ActiveActivity {
+                $startedAt = $schedule->start_time;
+
+                if (! $startedAt || ! $startedAt->isToday()) {
+                    return null;
+                }
+
+                return new ActiveActivity(
+                    source: 'SMALL_PM',
+                    label: 'Small PM: '.(SmallPmRow::TASK_TYPES[$schedule->task_type] ?? $schedule->task_type),
+                    picName: $user->name,
+                    startedAt: $startedAt,
+                    recordId: $schedule->id,
+                    groupName: $schedule->row?->name,
+                    endedAt: $closures->get(ActivityMonitorClosure::keyFor('SMALL_PM', $schedule->id)),
+                    userId: $user->id,
+                    areaId: $schedule->row?->area_id ?? $user->area_id,
+                    // The row's first machine places the PIC on the VME map.
+                    machineId: $schedule->row?->machines->first()?->id,
+                    jobTypeKey: $this->jobTypeKey('SMALL_PM'),
+                );
+            })
+            ->filter()
+            ->all();
+    }
+
+    /**
      * @param  Collection<string, CarbonInterface>  $closures
      * @return array<int, ActiveActivity>
      */
@@ -232,6 +296,29 @@ class ActiveActivityResolver
             userId: $user->id,
             areaId: $user->area_id,
             jobTypeKey: $this->jobTypeKey('OIL_AUDIT_ACTION'),
+        )];
+    }
+
+    /**
+     * @param  Collection<string, CarbonInterface>  $closures
+     * @return array<int, ActiveActivity>
+     */
+    private function predictiveActivity(User $user, Collection $closures): array
+    {
+        if (! $user->hasStartedPredictiveToday()) {
+            return [];
+        }
+
+        return [new ActiveActivity(
+            source: 'PREDICTIVE',
+            label: 'Action Predictive',
+            picName: $user->name,
+            startedAt: $user->predictive_started_at,
+            recordId: null,
+            endedAt: $closures->get(ActivityMonitorClosure::keyFor('PREDICTIVE', $user->id)),
+            userId: $user->id,
+            areaId: $user->area_id,
+            jobTypeKey: $this->jobTypeKey('PREDICTIVE'),
         )];
     }
 

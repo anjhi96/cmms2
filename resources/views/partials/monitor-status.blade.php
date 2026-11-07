@@ -19,14 +19,15 @@
     @param bool  $isAdmin
 --}}
 @php
-    $fixedOrder = ['PM', 'GREASING', 'OIL_AUDIT', 'OIL_AUDIT_ACTION'];
+    $fixedOrder = ['PM', 'GREASING', 'SMALL_PM', 'OIL_AUDIT', 'OIL_AUDIT_ACTION', 'PREDICTIVE'];
     $srcLabels = [
-        'PM' => 'PM', 'GREASING' => 'Greasing',
+        'PM' => 'PM', 'GREASING' => 'Greasing', 'SMALL_PM' => 'Small PM',
         'OIL_AUDIT' => 'Oil Audit', 'OIL_AUDIT_ACTION' => 'Oil Audit Action',
+        'PREDICTIVE' => 'Action Predictive',
     ];
     $srcHex = [
-        'PM' => '#2563eb', 'GREASING' => '#f59e0b', 'OIL_AUDIT' => '#10b981',
-        'OIL_AUDIT_ACTION' => '#0891b2',
+        'PM' => '#2563eb', 'GREASING' => '#f59e0b', 'SMALL_PM' => '#65a30d', 'OIL_AUDIT' => '#10b981',
+        'OIL_AUDIT_ACTION' => '#0891b2', 'PREDICTIVE' => '#e11d48',
     ];
     // Manual activities don't share one "Manual" color — each DISTINCT
     // activity NAME gets its own deterministic color (same name always maps

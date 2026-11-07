@@ -7,6 +7,7 @@ use App\Models\Greasing;
 use App\Models\JobType;
 use App\Models\PicAvailability;
 use App\Models\PMSchedule;
+use App\Models\SmallPmSchedule;
 use App\Models\User;
 use App\Models\VmeCharacterProfile;
 use App\Services\ActiveActivityResolver;
@@ -114,7 +115,7 @@ class VmeSnapshotService
         $resolver = new ActiveActivityResolver;
 
         $pics = User::query()
-            ->select(['id', 'name', 'role', 'area_id', 'oil_audit_started_at', 'oil_audit_action_started_at'])
+            ->select(['id', 'name', 'role', 'area_id', 'oil_audit_started_at', 'oil_audit_action_started_at', 'predictive_started_at'])
             ->where('role', User::ROLE_PIC)
             ->where('is_active', true)
             ->when($areaId, fn ($q, $id) => $q->where('area_id', $id))
@@ -545,6 +546,19 @@ class VmeSnapshotService
             ->each(function (Greasing $g) use (&$map) {
                 $map[$this->normalizeName($g->pic)][] = [
                     'source' => 'GREASING', 'record_id' => $g->id, 'at' => Carbon::instance($g->updated_at ?? $g->start_time), 'reason' => ActiveActivity::STATUS_FINISHED,
+                ];
+            });
+
+        // Small PM stores the PIC by id; the map is keyed by name like the rest.
+        $namesById = $pics->filter(fn ($p) => $names->contains($p->name))->pluck('name', 'id');
+
+        SmallPmSchedule::query()
+            ->whereIn('pic_user_id', $namesById->keys())->whereNotNull('start_time')
+            ->whereDate('start_time', today())->whereIn('status', SmallPmSchedule::DONE_STATUSES)
+            ->get(['id', 'pic_user_id', 'start_time', 'updated_at'])
+            ->each(function (SmallPmSchedule $s) use (&$map, $namesById) {
+                $map[$this->normalizeName($namesById[$s->pic_user_id])][] = [
+                    'source' => 'SMALL_PM', 'record_id' => $s->id, 'at' => Carbon::instance($s->updated_at ?? $s->start_time), 'reason' => ActiveActivity::STATUS_FINISHED,
                 ];
             });
 

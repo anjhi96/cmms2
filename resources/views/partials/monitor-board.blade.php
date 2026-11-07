@@ -26,13 +26,15 @@
 --}}
 @php
     $srcAccent = [
-        'PM' => 'border-blue-600', 'GREASING' => 'border-amber-500',
+        'PM' => 'border-blue-600', 'GREASING' => 'border-amber-500', 'SMALL_PM' => 'border-lime-600',
         'OIL_AUDIT' => 'border-emerald-500', 'OIL_AUDIT_ACTION' => 'border-cyan-600',
+        'PREDICTIVE' => 'border-rose-600',
         'MANUAL' => 'border-violet-500',
     ];
     $srcText = [
-        'PM' => 'text-blue-600', 'GREASING' => 'text-amber-600',
+        'PM' => 'text-blue-600', 'GREASING' => 'text-amber-600', 'SMALL_PM' => 'text-lime-700',
         'OIL_AUDIT' => 'text-emerald-600', 'OIL_AUDIT_ACTION' => 'text-cyan-700',
+        'PREDICTIVE' => 'text-rose-600',
         'MANUAL' => 'text-violet-600',
     ];
 

@@ -4,8 +4,10 @@
 export const SOURCE_LABEL = {
     PM: 'PM',
     GREASING: 'Greasing',
+    SMALL_PM: 'Small PM',
     OIL_AUDIT: 'Oil Audit',
     OIL_AUDIT_ACTION: 'Oil Audit Action',
+    PREDICTIVE: 'Action Predictive',
     MANUAL: 'Manual Activity',
 };
 
@@ -86,7 +88,7 @@ export function renderPic(d) {
         if (a.record) {
             const r = a.record;
             body += `<dl class="mt-2 rounded-lg bg-slate-50 p-2 text-xs">${row('No. order', r.order_number ? esc(r.order_number) : null)}${row('Mesin', r.machine_number ? esc(r.machine_number) : null)}`
-                + `${row('Group', r.group ? esc(r.group) : null)}${row('Siklus', r.cycle ? esc(r.cycle) : null)}${row('Rencana', r.plan_date ? esc(formatDate(r.plan_date)) : null)}`
+                + `${row('Group', r.group ? esc(r.group) : null)}${row('Row', r.row ? esc(r.row) : null)}${row('Siklus', r.cycle ? esc(r.cycle) : null)}${row('Rencana', r.plan_date ? esc(formatDate(r.plan_date)) : null)}`
                 + `${row('Jatuh tempo', r.due_date ? esc(formatDate(r.due_date)) : null)}${row('Status', r.status ? esc(PM_STATUS[r.status] || r.status) : null)}${row('Nama', r.name ? esc(r.name) : null)}</dl>`;
         } else if (a.source === 'OIL_AUDIT' || a.source === 'OIL_AUDIT_ACTION') {
             body += empty('Oil Audit dicatat sebagai penanda harian pada PIC, bukan sebagai record tersendiri.');

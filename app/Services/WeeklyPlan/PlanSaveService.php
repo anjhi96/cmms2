@@ -14,12 +14,16 @@ use Illuminate\Validation\ValidationException;
  */
 class PlanSaveService
 {
-    public function __construct(private readonly PlanBoardService $board) {}
+    public function __construct(
+        private readonly PlanBoardService $board,
+        private readonly PicSyncService $picSync,
+    ) {}
 
     /**
      * @param  list<array{pm_schedule_id: int, day: string, pic?: ?string, construction_note?: ?string}>  $rows
+     * @return int PM Schedule PICs given back because their machine left the plan
      */
-    public function save(WeeklyPmPlan $plan, array $rows, User $user): void
+    public function save(WeeklyPmPlan $plan, array $rows, User $user): int
     {
         $days = array_map(fn ($d) => $d->toDateString(), $plan->workDays());
         $pics = $this->board->picNames($plan->area);
@@ -73,5 +77,11 @@ class PlanSaveService
         });
 
         $plan->unsetRelation('items');
+
+        // Machines taken out of the plan give their PM Schedule PIC back now.
+        $released = $this->picSync->releaseRemoved($plan);
+        $plan->unsetRelation('items');
+
+        return $released;
     }
 }

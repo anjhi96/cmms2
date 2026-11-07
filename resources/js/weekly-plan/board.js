@@ -251,7 +251,10 @@ export function initWeeklyPlan(root) {
             const result = await request(root.dataset.saveUrl, 'PUT', buildPayload(state));
             outputs = result;
             showError(null);
-            setStatus(dirty ? 'Ada perubahan, menyimpan...' : 'Tersimpan');
+            const released = result.pic_released > 0
+                ? `, PIC ${result.pic_released} PM di PM Schedule dikembalikan`
+                : '';
+            setStatus(dirty ? 'Ada perubahan, menyimpan...' : `Tersimpan${released}`);
             renderEmail();
         } catch (error) {
             dirty = true;
@@ -521,6 +524,51 @@ export function initWeeklyPlan(root) {
         }
     }
 
+    /** True when every day's limit and type mix equals the area default. */
+    function daysMatchDefaults() {
+        const defaults = state.day_defaults ?? [];
+        const norm = (types) => JSON.stringify(types.filter((t) => t.type).map((t) => [t.type, t.count]));
+
+        return state.days.every((day, i) => defaults[i]
+            && day.limit === defaults[i].limit
+            && norm(day.types) === norm(defaults[i].types));
+    }
+
+    function renderDefaultsBar() {
+        const bar = root.querySelector('[data-defaults-bar]');
+        if (!bar) return;
+
+        const area = escapeHtml(state.plan.area);
+        const matches = daysMatchDefaults();
+        const hadFocus = bar.contains(document.activeElement);
+
+        bar.innerHTML = `
+            <p class="text-text-muted">${matches
+                ? `Maks. mesin dan kombinasi tipe sesuai default ${area}.`
+                : `Maks. mesin atau kombinasi tipe minggu ini sudah diubah dari default ${area}.`}</p>
+            <button type="button" data-day-defaults class="btn btn-outline btn-sm min-h-11 sm:min-h-0" ${matches ? 'disabled' : ''}>Kembalikan ke default ${area}</button>`;
+
+        if (hadFocus) bar.querySelector('[data-day-defaults]')?.focus();
+    }
+
+    async function restoreDayDefaults(button) {
+        button.disabled = true;
+
+        try {
+            await flush();
+            const result = await request(root.dataset.dayDefaultsUrl, 'POST');
+            state = result.state;
+            outputs = result;
+            Object.keys(dayErrors).forEach((k) => delete dayErrors[k]);
+            renderBoard();
+            renderEmail();
+            setStatus(`Maks. mesin dan kombinasi tipe kembali ke default ${state.plan.area}`);
+        } catch (error) {
+            showError(`Gagal mengembalikan pengaturan default: ${error.message}`);
+            button.disabled = false;
+        }
+    }
+
     /** Re-renders the day headers, putting focus back on the control that had it. */
     function renderDayHeaders() {
         const active = document.activeElement;
@@ -538,6 +586,7 @@ export function initWeeklyPlan(root) {
         }
 
         if (refocus) root.querySelector(refocus)?.focus();
+        renderDefaultsBar();
     }
 
     function renderBoard() {
@@ -590,6 +639,7 @@ export function initWeeklyPlan(root) {
                     ${pool.map(cardHtml).join('') || `<p class="p-2 text-sm text-text-muted">${poolEmptyText}</p>`}
                 </div>
             </section>
+            <div data-defaults-bar class="flex min-h-11 flex-wrap items-center justify-between gap-2 text-sm"></div>
             <div class="grid min-w-0 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 ${state.days.map((day) => {
                     const cards = state.items.filter((c) => c.day === day.date);
@@ -602,6 +652,8 @@ export function initWeeklyPlan(root) {
                         </div>`;
                 }).join('')}
             </div>`;
+
+        renderDefaultsBar();
 
         els.board.querySelectorAll('[data-list]').forEach((list) => {
             sortables.push(Sortable.create(list, {
@@ -692,10 +744,10 @@ export function initWeeklyPlan(root) {
         const when = sync.applied_at ? ` Terakhir diterapkan ${escapeHtml(sync.applied_at)}.` : '';
 
         if (sync.pending > 0) {
-            els.picSyncStatus.className = 'mb-4 text-sm font-medium text-warning-hover';
+            els.picSyncStatus.className = 'font-medium text-warning-hover sm:text-right';
             els.picSyncStatus.innerHTML = `${sync.pending} perubahan PIC belum diterapkan ke PM Schedule.${when}`;
         } else {
-            els.picSyncStatus.className = 'mb-4 text-sm text-text-muted';
+            els.picSyncStatus.className = 'text-text-muted sm:text-right';
             els.picSyncStatus.innerHTML = sync.applied_at
                 ? `PIC di PM Schedule sudah sama dengan jadwal ini.${when}`
                 : 'PIC di jadwal ini belum diterapkan ke PM Schedule. Teknisi baru melihat PM-nya setelah PIC diterapkan.';
@@ -718,7 +770,6 @@ export function initWeeklyPlan(root) {
     }
 
     async function runPicSync() {
-        const label = els.picSync.textContent;
         els.picSync.disabled = true;
 
         try {
@@ -734,7 +785,8 @@ export function initWeeklyPlan(root) {
 
             if (!window.confirm(picSyncMessage(preview))) return;
 
-            els.picSync.textContent = 'Menerapkan...';
+            els.picSync.setAttribute('aria-busy', 'true');
+            setStatus('Menerapkan PIC ke PM Schedule...');
             const result = await request(root.dataset.picSyncUrl, 'POST');
             outputs = result;
             renderEmail();
@@ -744,7 +796,7 @@ export function initWeeklyPlan(root) {
             showError(`Gagal menerapkan PIC: ${error.message}`);
         } finally {
             els.picSync.disabled = false;
-            els.picSync.textContent = label;
+            els.picSync.removeAttribute('aria-busy');
         }
     }
 
@@ -782,9 +834,9 @@ export function initWeeklyPlan(root) {
     }
 
     async function runAutofill() {
-        const label = els.autofill.textContent;
         els.autofill.disabled = true;
-        els.autofill.textContent = 'Mengisi...';
+        els.autofill.setAttribute('aria-busy', 'true');
+        setStatus('Mengisi jadwal otomatis...');
         try {
             await flush();
             const result = await request(root.dataset.autofillUrl, 'POST');
@@ -801,7 +853,7 @@ export function initWeeklyPlan(root) {
             showError(`Isi otomatis gagal: ${error.message}`);
         } finally {
             els.autofill.disabled = false;
-            els.autofill.textContent = label;
+            els.autofill.removeAttribute('aria-busy');
         }
     }
 
@@ -875,6 +927,12 @@ export function initWeeklyPlan(root) {
     });
 
     root.addEventListener('click', (event) => {
+        const defaultsButton = event.target.closest('[data-day-defaults]');
+        if (defaultsButton) {
+            restoreDayDefaults(defaultsButton);
+            return;
+        }
+
         const unschedule = event.target.closest('[data-unschedule]');
         if (unschedule) {
             applyMove(unschedule.closest('[data-card]').dataset.card, null, null, true);

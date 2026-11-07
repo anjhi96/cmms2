@@ -193,6 +193,25 @@
 
             </div>
 
+            <div class="bg-white shadow rounded-lg p-6">
+
+                <h2 class="font-semibold text-lg">
+                    Small PM Schedule
+                </h2>
+
+                <p class="text-sm text-gray-500 mt-2">
+                    Template untuk import jadwal Small PM (kolom row = nama row di master Row Small PM)
+                </p>
+
+                <a href="{{ route('import-templates.download', 'small-pm-schedule') }}"
+                    class="inline-block mt-4 bg-green-600 text-white px-4 py-2 rounded">
+
+                    Download Template
+
+                </a>
+
+            </div>
+
 
 
             <div class="bg-white shadow rounded-lg p-6">

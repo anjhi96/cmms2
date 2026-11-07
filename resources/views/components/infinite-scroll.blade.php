@@ -12,8 +12,15 @@
     Numbered links stay available as a <noscript> fallback.
 --}}
 @php
+    // url()->current(), not request()->fullUrlWithQuery(): behind the
+    // Codespaces proxy the raw request reports "localhost:8000", which the
+    // browser cannot reach; url() follows the forced root URL set in
+    // AppServiceProvider (and is the plain request URL everywhere else).
     $next = $paginator->hasMorePages()
-        ? request()->fullUrlWithQuery([$paginator->getPageName() => $paginator->currentPage() + 1])
+        ? url()->current().'?'.\Illuminate\Support\Arr::query(array_merge(
+            request()->query(),
+            [$paginator->getPageName() => $paginator->currentPage() + 1]
+        ))
         : null;
 @endphp
 <div data-infinite-sentinel="{{ $key }}" @if ($next) data-next-url="{{ $next }}" @endif {{ $attributes->class('w-full') }}>

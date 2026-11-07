@@ -13,7 +13,12 @@ class JobType extends Model
 
     public const KEY_OIL_AUDIT_ACTION = 'oil_audit_action';
 
+    public const KEY_PREDICTIVE = 'predictive';
+
     public const KEY_GREASING = 'greasing';
+
+    /** Seeded by 2026_11_01_100000_add_vme_job_type_aliases; used by Small PM. */
+    public const KEY_CLEANING = 'cleaning';
 
     public const KEY_MANUAL = 'manual';
 

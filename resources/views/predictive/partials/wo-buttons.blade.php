@@ -11,20 +11,28 @@
         ? 'inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold'
         : 'inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-semibold';
     $focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1';
+    // Claim and Action need an active Action Predictive activity (see PredictiveController::canWork).
+    $ready = $canWork ?? true;
+    $blocked = 'cursor-not-allowed bg-slate-200 text-slate-500';
+    $blockedHint = 'Mulai aktivitas Action Predictive dulu';
 @endphp
 <div class="flex flex-wrap items-center gap-2">
     @if ($showDetail ?? true)
         <a href="{{ route('predictive.show', $wo) }}" class="{{ $btn }} {{ $focus }} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">Detail</a>
     @endif
 
-    @if ($wo->canBeClaimedBy($u))
+    @if ($wo->canBeClaimedBy($u) && ! $ready)
+        <button type="button" disabled title="{{ $blockedHint }}" class="{{ $btn }} {{ $blocked }}">Claim WO</button>
+    @elseif ($wo->canBeClaimedBy($u))
         <form method="POST" action="{{ route('predictive.claim', $wo) }}" class="{{ ($size ?? 'row') === 'card' ? 'flex-1' : '' }}">
             @csrf
             <button type="submit" class="{{ $btn }} {{ $focus }} w-full bg-sky-600 text-white hover:bg-sky-700">Claim WO</button>
         </form>
     @endif
 
-    @if ($wo->canBeActionedBy($u))
+    @if ($wo->canBeActionedBy($u) && ! $ready)
+        <button type="button" disabled title="{{ $blockedHint }}" class="{{ $btn }} {{ $blocked }}">Action / Closing</button>
+    @elseif ($wo->canBeActionedBy($u))
         <button type="button"
             @click="action = @js(['id' => $wo->id, 'order' => $wo->order_number, 'machine' => $wo->machine_number, 'url' => route('predictive.action', $wo), 'next' => ($wo->actions_count ?? $wo->actions()->count()) + 1])"
             class="{{ $btn }} {{ $focus }} bg-slate-900 text-white hover:bg-slate-700">Action / Closing</button>

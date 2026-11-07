@@ -64,6 +64,7 @@ class User extends Authenticatable
         'avatar_path',
         'oil_audit_started_at',
         'oil_audit_action_started_at',
+        'predictive_started_at',
     ];
 
     /**
@@ -89,6 +90,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'oil_audit_started_at' => 'datetime',
             'oil_audit_action_started_at' => 'datetime',
+            'predictive_started_at' => 'datetime',
         ];
     }
 
@@ -112,6 +114,16 @@ class User extends Authenticatable
     {
         return $this->oil_audit_action_started_at !== null
             && $this->oil_audit_action_started_at->isToday();
+    }
+
+    /**
+     * Same once-a-day rule as hasStartedOilAuditActionToday(), for the
+     * Action Predictive menu.
+     */
+    public function hasStartedPredictiveToday(): bool
+    {
+        return $this->predictive_started_at !== null
+            && $this->predictive_started_at->isToday();
     }
 
     /*

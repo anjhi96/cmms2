@@ -3,23 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\PredictiveWorkflowException;
+use App\Http\Controllers\Concerns\HandlesActivityConflict;
 use App\Imports\PredictiveWorkOrderImport;
+use App\Models\ActivityMonitorClosure;
 use App\Models\Machine;
 use App\Models\PredictiveProblemOption;
 use App\Models\PredictiveWorkOrder;
 use App\Models\User;
+use App\Services\ActiveActivityResolver;
 use App\Services\Predictive\PredictiveDashboardService;
 use App\Services\Predictive\PredictiveWorkOrderService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PredictiveController extends Controller
 {
+    use HandlesActivityConflict;
+
     /** URL tab key => WO category. The third tab (dashboard) has no category. */
     private const TABS = [
         'vibration' => PredictiveWorkOrder::CATEGORY_VIBRATION,
@@ -52,6 +58,8 @@ class PredictiveController extends Controller
                 'dashboard' => ['label' => 'Dashboard', 'open' => null],
             ],
             'canManage' => $this->canManage($user),
+            'canWork' => $this->canWork($user),
+            'promptStart' => $user->isPic() && ! $this->predictiveIsCurrent($user),
             'areaOptions' => $user->seesAllAreas() ? $user->selectableAreaNames() : collect(),
         ];
 
@@ -95,6 +103,7 @@ class PredictiveController extends Controller
             ->values();
 
         return view('predictive.show', [
+            'canWork' => $this->canWork($user),
             'workOrder' => $workOrder,
             'actionOptions' => $this->actionOptions($user, $workOrder->category, $workOrder->area),
             'actionContext' => ['category' => $workOrder->categoryLabel(), 'area' => $workOrder->area],
@@ -251,11 +260,58 @@ class PredictiveController extends Controller
         return redirect()->route('predictive.index', ['tab' => $tab])->with('success', "WO {$order} dihapus.");
     }
 
+    /**
+     * START ACTION PREDICTIVE (daily Start prompt). Mirrors
+     * OilAuditController::startDailyAction: a no-op while Predictive is already
+     * this PIC's current activity, otherwise the one-active-activity-per-PIC
+     * guard asks END & START when something else is running.
+     */
+    public function start(Request $request): RedirectResponse
+    {
+        $validated = $request->validate(['started_at' => ['required', 'date']]);
+
+        $user = $request->user();
+        abort_unless($user->isPic(), 403, 'Hanya PIC yang dapat memulai aktivitas Action Predictive.');
+
+        if (! $this->predictiveIsCurrent($user)) {
+            $startedAt = Carbon::parse($validated['started_at']);
+
+            if (! $request->boolean('confirm_end_start')) {
+                $current = $this->activityConflictFor($user);
+
+                if ($current) {
+                    return $this->backToPredictive()->with('activity_conflict', $this->activityConflictPayload(
+                        $current,
+                        route('predictive.start'),
+                        $startedAt,
+                    ));
+                }
+            } else {
+                $startedAt = $this->confirmedStartTime($user, $startedAt);
+            }
+
+            $user->update(['predictive_started_at' => $startedAt]);
+
+            // Predictive has no per-record id, so a closure from an earlier instance today
+            // (finished, then restarted) must go or the new start would look finished.
+            ActivityMonitorClosure::where('source', 'PREDICTIVE')
+                ->where('source_key', (string) $user->id)
+                ->whereDate('business_date', today())
+                ->delete();
+        }
+
+        return $this->backToPredictive()->with('success', 'Aktivitas Action Predictive dimulai.');
+    }
+
     public function claim(Request $request, PredictiveWorkOrder $workOrder): RedirectResponse
     {
         $user = $request->user();
         $this->authorizeVisible($workOrder, $user);
         abort_unless($user->isPic(), 403, 'Hanya PIC yang dapat meng-claim WO.');
+
+        if (! $this->predictiveIsCurrent($user)) {
+            return back()->with('error', self::START_FIRST);
+        }
 
         try {
             $this->service->claim($workOrder, $user);
@@ -274,6 +330,10 @@ class PredictiveController extends Controller
 
         if ($workOrder->isOpen() && ! $workOrder->isClaimedBy($user)) {
             abort(403, 'Hanya PIC yang meng-claim WO ini yang dapat menyimpan Action.');
+        }
+
+        if (! $this->predictiveIsCurrent($user)) {
+            return back()->withInput()->with('error', self::START_FIRST);
         }
 
         $data = $this->service->validateAction($workOrder, $request->all());
@@ -343,6 +403,25 @@ class PredictiveController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    private const START_FIRST = 'Mulai aktivitas Action Predictive dulu sebelum Claim atau Action / Closing.';
+
+    /** Predictive is this PIC's one current activity (started today and not ended or replaced). */
+    private function predictiveIsCurrent(User $user): bool
+    {
+        return app(ActiveActivityResolver::class)->currentFor($user)?->source === 'PREDICTIVE';
+    }
+
+    /** Whether the buttons that need an active Predictive activity (Claim, Action) are usable. Only PICs are gated. */
+    private function canWork(User $user): bool
+    {
+        return ! $user->isPic() || $this->predictiveIsCurrent($user);
+    }
+
+    private function backToPredictive(): RedirectResponse
+    {
+        return redirect()->back(302, [], route('predictive.index'));
     }
 
     private function canManage(User $user): bool

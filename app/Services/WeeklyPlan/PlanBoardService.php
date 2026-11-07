@@ -122,6 +122,7 @@ class PlanBoardService
         $notes = $this->lastNotes($plan, $machineIds);
         $carried = array_flip($this->carriedOverIds($plan));
         $picNames = $this->picNames($plan->area);
+        $defaults = DayDefaults::for($plan->area, $plan->week_start);
 
         $pool = $candidates
             ->reject(fn (PMSchedule $s) => isset($placedIds[(int) $s->id]))
@@ -163,6 +164,13 @@ class PlanBoardService
                 'types' => $plan->dayTypes($d->toDateString()),
             ], $plan->workDays()),
             'machine_types' => $this->machineTypes($plan, $candidates),
+            'day_defaults' => array_values(array_map(
+                fn (string $date) => [
+                    'limit' => $defaults['day_limits'][$date],
+                    'types' => $defaults['day_types'][$date] ?? [],
+                ],
+                array_keys($defaults['day_limits'])
+            )),
             'max_day_limit' => WeeklyPmPlan::MAX_DAY_LIMIT,
             'items' => $items,
             'pool' => $pool,

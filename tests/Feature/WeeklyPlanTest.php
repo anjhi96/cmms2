@@ -470,25 +470,28 @@ test('apply PIC writes plan PICs into PM Schedule and takes them back when a mac
         ->and($other->fresh()->pic)->toBe('Jaenal')
         ->and($started->fresh()->pic)->toBeNull();
 
-    // Revision: A-1 goes back to the pool, A-2 changes PIC. Nothing changes in PM Schedule until applied again.
+    // Revision: A-1 goes back to the pool, A-2 changes PIC. Leaving the plan
+    // takes the PIC back on save; the new PIC for A-2 waits for the button.
     $response = $save([
         ['pm_schedule_id' => $other->id, 'day' => '2026-11-09', 'pic' => 'Asep'],
         ['pm_schedule_id' => $started->id, 'day' => '2026-11-10', 'pic' => 'Asep'],
     ]);
-    expect($response->json('pic_sync.pending'))->toBe(2)
-        ->and($empty->fresh()->pic)->toBe('Asep');
+    expect($empty->fresh()->pic)->toBeNull()
+        ->and($other->fresh()->pic)->toBe('Jaenal')
+        ->and($response->json('pic_sync.pending'))->toBe(1);
 
     $this->actingAs($koor)->postJson(route('weekly-plan.pic-sync.apply', $plan))
-        ->assertJsonPath('result.restore', 1)
-        ->assertJsonPath('result.set', 1);
+        ->assertJsonPath('result.set', 1)
+        ->assertJsonPath('result.restore', 0);
+    expect($other->fresh()->pic)->toBe('Asep');
 
-    expect($empty->fresh()->pic)->toBeNull()          // left the plan: PIC removed again
-        ->and($other->fresh()->pic)->toBe('Asep');
-
-    // A-2 leaves too: it gets Budi back, the PIC it had before the plan touched it.
+    // A-2 leaves too: on save it gets Budi back, the PIC it had before the plan touched it.
     $save([['pm_schedule_id' => $started->id, 'day' => '2026-11-10', 'pic' => 'Asep']]);
-    $this->actingAs($koor)->postJson(route('weekly-plan.pic-sync.apply', $plan))->assertJsonPath('result.restore', 1);
     expect($other->fresh()->pic)->toBe('Budi');
+
+    // Emptying the plan entirely ("Kosongkan semua hari") releases everything that is left.
+    $save([]);
+    expect($plan->fresh()->applied_pics)->toBe([]);
 
     // Applying again with nothing new changes nothing.
     $this->actingAs($koor)->postJson(route('weekly-plan.pic-sync.apply', $plan))->assertJsonPath('result.pending', 0);
@@ -510,16 +513,26 @@ test('apply PIC leaves a PIC that was changed by hand in PM Schedule, and cleari
 
     $a->update(['pic' => 'Dedi']); // reassigned by hand on the PM Schedule page
 
+    // A-1 leaves the plan and A-2's PIC is cleared in the plan; both are handled on save.
     $this->actingAs($koor)->putJson($url, ['items' => [
         ['pm_schedule_id' => $b->id, 'day' => '2026-11-09', 'pic' => null],
-    ]])->assertOk();
-
-    $this->actingAs($koor)->postJson(route('weekly-plan.pic-sync.apply', $plan))
-        ->assertJsonPath('result.changed', 1)
-        ->assertJsonPath('result.restore', 1);
+    ]])->assertOk()->assertJsonPath('pic_sync.pending', 0);
 
     expect($a->fresh()->pic)->toBe('Dedi')
-        ->and($b->fresh()->pic)->toBeNull();
+        ->and($b->fresh()->pic)->toBeNull()
+        ->and($plan->fresh()->applied_pics)->toBe([]);
+});
+
+test('returning machines to the pool restores PICs for a plan applied before this change', function () {
+    // The state the coordinator's real plan was in: PICs applied, then every machine sent back.
+    $koor = wpUser(User::ROLE_KOORDINATOR);
+    $a = wpSchedule('A-1', 'NDE', ['pic' => 'Asep']);
+    $plan = wpPlan();
+    $plan->update(['applied_pics' => [$a->id => ['pic' => 'Asep', 'previous' => null]]]);
+
+    $this->actingAs($koor)->putJson(route('weekly-plan.items.save', $plan), ['items' => []])->assertOk();
+
+    expect($a->fresh()->pic)->toBeNull();
 });
 
 test('a koordinator of another area cannot apply PICs', function () {
@@ -528,4 +541,26 @@ test('a koordinator of another area cannot apply PICs', function () {
     $bul = wpUser(User::ROLE_KOORDINATOR, 'BUL');
 
     $this->actingAs($bul)->postJson(route('weekly-plan.pic-sync.apply', $plan))->assertForbidden();
+});
+
+test('restoring day defaults puts a changed WWD week back to the default limits and type mix', function () {
+    $koor = wpUser(User::ROLE_KOORDINATOR);
+    $plan = WeeklyPmPlan::create([
+        'area' => 'WWD', 'week_start' => WP_WEEK, 'status' => 'DRAFT',
+        'day_limits' => ['2026-11-09' => 4, '2026-11-10' => 1, '2026-11-11' => 1, '2026-11-12' => 1, '2026-11-13' => 0],
+        'day_types' => ['2026-11-09' => [['type' => 'NDE', 'count' => 2], ['type' => 'SHUIXING', 'count' => 2]]],
+    ]);
+
+    $show = $this->actingAs($koor)->get(route('weekly-plan.show', ['area' => 'wwd', 'week' => WP_WEEK]))->viewData('payload')['state'];
+    expect($show['day_defaults'][1])->toBe(['limit' => 4, 'types' => [['type' => 'NDE', 'count' => 2], ['type' => 'SHUIXING', 'count' => 2]]])
+        ->and($show['days'][1]['limit'])->toBe(1);
+
+    $response = $this->actingAs($koor)->postJson(route('weekly-plan.day-defaults.restore', $plan))->assertOk();
+
+    expect(collect($response->json('state.days'))->pluck('limit')->all())->toBe([4, 4, 4, 4, 0])
+        ->and($response->json('state.days.3.types'))->toBe([['type' => 'NDE', 'count' => 2], ['type' => 'NDB', 'count' => 2]])
+        ->and($plan->fresh()->dayTypes('2026-11-11'))->toBe([['type' => 'NDE', 'count' => 2], ['type' => 'SHUIXING', 'count' => 2]]);
+
+    $bul = wpUser(User::ROLE_KOORDINATOR, 'BUL');
+    $this->actingAs($bul)->postJson(route('weekly-plan.day-defaults.restore', $plan))->assertForbidden();
 });

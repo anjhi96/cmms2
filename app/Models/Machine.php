@@ -40,6 +40,12 @@ class Machine extends Model
         return $this->belongsTo(Group::class);
     }
 
+    /** Small PM row; set from the row master, same as group_id. */
+    public function smallPmRow(): BelongsTo
+    {
+        return $this->belongsTo(SmallPmRow::class);
+    }
+
     public function oilAudits(): HasMany
     {
         return $this->hasMany(OilAudit::class);

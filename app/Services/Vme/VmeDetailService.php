@@ -10,6 +10,7 @@ use App\Models\ManualActivity;
 use App\Models\OilAudit;
 use App\Models\PicAvailability;
 use App\Models\PMSchedule;
+use App\Models\SmallPmSchedule;
 use App\Models\PMSparepart;
 use App\Models\User;
 use App\Support\Activities\ActiveActivity;
@@ -94,8 +95,27 @@ class VmeDetailService
             if ($viewer->isAdmin() || $viewer->isKoordinator()) {
                 $out['link'] = ['label' => 'Buka Execute Greasing', 'url' => route('greasings.execute', $g->id)];
             }
+        } elseif ($source === 'SMALL_PM' && $recordId && ($s = SmallPmSchedule::with('row:id,name')->find($recordId))) {
+            $out['record'] = [
+                'id' => $s->id,
+                'order_number' => $s->order_number,
+                'row' => $s->row?->name,
+                'cycle' => $s->cycle,
+                'plan_date' => $s->plan_date?->toDateString(),
+                'due_date' => $s->due_date?->toDateString(),
+                'status' => $s->status,
+            ];
+            if ($viewer->isAdmin() || $viewer->isKoordinator()) {
+                $out['link'] = ['label' => 'Buka Execute Small PM', 'url' => route('small-pm.execute', $s->id)];
+            }
         } elseif ($source === 'MANUAL' && $recordId && ($m = ManualActivity::find($recordId))) {
             $out['record'] = ['id' => $m->id, 'name' => $m->name, 'machine_number' => $m->machine_number];
+        } elseif ($source === 'PREDICTIVE') {
+            // Daily marker on the user, like Oil Audit: no record of its own.
+            $out['record'] = null;
+            if ($viewer->isAdmin() || $viewer->isKoordinator()) {
+                $out['link'] = ['label' => 'Buka Action Predictive', 'url' => route('predictive.index')];
+            }
         } elseif (in_array($source, ['OIL_AUDIT', 'OIL_AUDIT_ACTION'], true)) {
             // Oil Audit is a daily marker on the user, not a record of its own.
             $out['record'] = null;

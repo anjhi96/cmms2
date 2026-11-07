@@ -7,7 +7,7 @@ use Carbon\CarbonInterface;
 
 /**
  * A single "active activity" a PIC currently owns, normalised across every
- * activity source (PM, Greasing, Oil Audit, Oil Audit Action, and — once it
+ * activity source (PM, Greasing, Oil Audit, Oil Audit Action, Action Predictive, and — once it
  * exists — Manual Activity). It is a read-only view derived from existing
  * records/columns: there is no activity table and this object is never
  * persisted.
@@ -29,7 +29,7 @@ final class ActiveActivity
     public readonly string $status;
 
     public function __construct(
-        /** Machine-readable source key: PM | GREASING | OIL_AUDIT | OIL_AUDIT_ACTION | MANUAL. */
+        /** Machine-readable source key: PM | GREASING | SMALL_PM | OIL_AUDIT | OIL_AUDIT_ACTION | PREDICTIVE | MANUAL. */
         public readonly string $source,
         /** Human label shown in the confirmation modal, e.g. "PM", "Greasing". */
         public readonly string $label,
@@ -122,6 +122,11 @@ final class ActiveActivity
             return $this->machineNumber;
         }
 
-        return $this->groupName ? 'Group: '.$this->groupName : null;
+        if (! $this->groupName) {
+            return null;
+        }
+
+        // Small PM rows are not greasing groups.
+        return ($this->source === 'SMALL_PM' ? 'Row: ' : 'Group: ').$this->groupName;
     }
 }

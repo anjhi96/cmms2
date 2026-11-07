@@ -7,17 +7,6 @@ use App\Models\PredictiveReopen;
 use App\Models\PredictiveWorkOrder;
 use App\Models\User;
 
-function pvEdit(array $overrides = []): array
-{
-    return array_merge([
-        'order_number' => 'WO-EDITED',
-        'machine_number' => 'M-EDIT',
-        'wo_date' => '2026-11-02',
-        'due_date' => '2026-11-20',
-        'problem_description' => 'Deskripsi baru',
-    ], $overrides);
-}
-
 test('admin and koordinator of the area can edit a WO', function (string $role) {
     $machine = pvMachine('M-EDIT');
     $wo = pvWo(['machine' => $machine]);

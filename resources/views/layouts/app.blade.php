@@ -27,6 +27,8 @@
     @php
         $routeName = Route::currentRouteName() ?? 'dashboard';
         $defaultPageTitle = match (true) {
+            str_starts_with($routeName, 'small-pm-rows.') => 'Row Small PM',
+            str_starts_with($routeName, 'small-pm.') => 'Small PM',
             str_contains($routeName, 'pm-schedules') => 'PM Schedules',
             str_contains($routeName, 'machines') => 'Machines',
             str_contains($routeName, 'groups') => 'Groups',

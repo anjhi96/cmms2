@@ -72,6 +72,7 @@ document.addEventListener('alpine:init', () => {
 
         $machineActive = request()->routeIs('machines.*');
         $groupActive = request()->routeIs('groups.*');
+        $smallPmRowActive = request()->routeIs('small-pm-rows.*');
         $machineQrActive = request()->routeIs('machine-qr.*');
         $sparepartActive = request()->routeIs('spareparts.*', 'sparepart-injection.*');
         $sparepartPlanningActive = request()->routeIs('sparepart-planning.*');
@@ -95,6 +96,7 @@ document.addEventListener('alpine:init', () => {
         $predictiveMasterActive = request()->routeIs('predictive.master.*');
         $predictiveActive = request()->routeIs('predictive.*') && ! $predictiveMasterActive;
         $greasingActive = request()->routeIs('greasings.*');
+        $smallPmActive = request()->routeIs('small-pm.*');
         $profileActive = request()->routeIs('profile.*');
 
         // Individual report routes — each links straight to its own report
@@ -117,8 +119,8 @@ document.addEventListener('alpine:init', () => {
         $machineHistoryActive = request()->routeIs('machine-history.*') && ! $cameFromReportPm && ! $cameFromReportMachine;
         @endphp
         <nav class="flex-1 overflow-y-auto px-3 py-4 text-sm" x-data="{
-            openGroup: '{{ $dashboardActive || $todayActivityActive || $pmScheduleActive || $weeklyPlanActive || $oilAuditActive || $oilAuditActionActive || $predictiveActive || $greasingActive ? 'main' :
-                        ($machineActive || $machineQrActive || $groupActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive || $predictiveMasterActive ? 'master' :
+            openGroup: '{{ $dashboardActive || $todayActivityActive || $pmScheduleActive || $weeklyPlanActive || $oilAuditActive || $oilAuditActionActive || $predictiveActive || $greasingActive || $smallPmActive ? 'main' :
+                        ($machineActive || $machineQrActive || $groupActive || $smallPmRowActive || $sparepartActive || $sparepartPlanningActive || $measurementActive || $checklistActive || $problemCategoryActive || $problemFindingsActive || $predictiveMasterActive ? 'master' :
                         ($machineHistoryActive || $reportActive ? 'report' : 'system')) }}',
             openSubmenu: '{{ $reportActive ? 'reports' : '' }}'
         }">
@@ -229,6 +231,17 @@ document.addEventListener('alpine:init', () => {
             <path d="m14 4 6 6" />',
             'visible' =>
             $isAdmin || $isKoordinator || $isPic || $isSupervisor,
+            ],
+            [
+            'route' => route('small-pm.index'),
+            'label' => 'Small PM',
+            'active' => $smallPmActive,
+            // fan: the motor cooling fan behind the grille being cleaned
+            'icon' => '
+            <path d="M10.827 16.379a6.082 6.082 0 0 1-8.618-7.002l5.412 1.45a6.082 6.082 0 0 1 7.002-8.618l-1.45 5.412a6.082 6.082 0 0 1 8.618 7.002l-5.412-1.45a6.082 6.082 0 0 1-7.002 8.618l1.45-5.412Z" />
+            <path d="M12 12v.01" />',
+            'visible' =>
+            $hasWwdArea && ($isAdmin || $isKoordinator || $isPic || $isSupervisor),
             ],
             ],
             ],
@@ -371,6 +384,18 @@ document.addEventListener('alpine:init', () => {
             <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" />',
             'visible' =>
             $isAdmin || $isKoordinator || $isSupervisor,
+            ],
+            [
+            'route' => route('small-pm-rows.index'),
+            'label' => 'Row Small PM',
+            'active' => $smallPmRowActive,
+            // rows-3: machines standing in rows
+            'icon' => '
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M21 9H3" />
+            <path d="M21 15H3" />',
+            'visible' =>
+            $hasWwdArea && ($isAdmin || $isKoordinator || $isSupervisor),
             ],
             [
             'route' => route('spareparts.index'),

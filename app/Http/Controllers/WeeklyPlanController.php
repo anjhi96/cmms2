@@ -6,6 +6,7 @@ use App\Models\Area;
 use App\Models\User;
 use App\Models\WeeklyPmPlan;
 use App\Services\WeeklyPlan\AutoFillService;
+use App\Services\WeeklyPlan\DayDefaults;
 use App\Services\WeeklyPlan\EmailComposer;
 use App\Services\WeeklyPlan\IndoDate;
 use App\Services\WeeklyPlan\MachineFamily;
@@ -76,7 +77,7 @@ class WeeklyPlanController extends Controller
                 'week_start' => $monday->toDateString(),
                 'status' => WeeklyPmPlan::STATUS_DRAFT,
                 'created_by' => $request->user()->id,
-                ...$this->defaultDaySettings($areaModel->name, $monday),
+                ...DayDefaults::for($areaModel->name, $monday),
             ]);
 
         return view('weekly-plan.show', [
@@ -107,12 +108,12 @@ class WeeklyPlanController extends Controller
                 'items.*.construction_note' => ['nullable', 'string', 'max:100'],
             ]);
 
-            $saver->save($plan, $data['items'], $request->user());
+            $released = $saver->save($plan, $data['items'], $request->user());
         } catch (ValidationException $e) {
             return response()->json(['message' => $e->getMessage(), 'errors' => $e->errors()], 422);
         }
 
-        return response()->json($this->outputs($plan->fresh()));
+        return response()->json(['pic_released' => $released] + $this->outputs($plan->fresh()));
     }
 
     public function autofill(Request $request, WeeklyPmPlan $plan, AutoFillService $autofill): JsonResponse
@@ -213,6 +214,16 @@ class WeeklyPlanController extends Controller
         return response()->json($this->payload($plan->fresh()));
     }
 
+    /** Puts the per-day limits and type mix back to the area defaults (config/weekly_plan.php). */
+    public function restoreDayDefaults(Request $request, WeeklyPmPlan $plan): JsonResponse
+    {
+        $this->authorizePlan($request->user(), $plan);
+
+        $plan->update(DayDefaults::for($plan->area, $plan->week_start) + ['updated_by' => $request->user()->id]);
+
+        return response()->json($this->payload($plan->fresh()));
+    }
+
     /** Dry run for the confirmation dialog of "Terapkan PIC ke PM Schedule". */
     public function picSyncPreview(Request $request, WeeklyPmPlan $plan): JsonResponse
     {
@@ -249,31 +260,6 @@ class WeeklyPlanController extends Controller
                 'applied_at' => $plan->pics_applied_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i'),
             ],
         ];
-    }
-
-    /**
-     * Starting limits and type mix for a new week, from config/weekly_plan.php.
-     *
-     * @return array{day_limits: array<string, int>, day_types: array<string, list<array{type: string, count: int}>>}
-     */
-    private function defaultDaySettings(string $area, CarbonImmutable $monday): array
-    {
-        $days = config("weekly_plan.days.$area");
-        $fallback = config('weekly_plan.fallback', ['limit' => WeeklyPmPlan::DEFAULT_DAY_LIMIT, 'types' => []]);
-        $limits = [];
-        $types = [];
-
-        foreach (range(0, 4) as $i) {
-            $date = $monday->addDays($i)->toDateString();
-            $day = $days[$i] ?? $fallback;
-            $limits[$date] = min(WeeklyPmPlan::MAX_DAY_LIMIT, max(0, (int) ($day['limit'] ?? WeeklyPmPlan::DEFAULT_DAY_LIMIT)));
-
-            if (! empty($day['types'])) {
-                $types[$date] = array_map(fn ($row) => ['type' => MachineFamily::of($row['type']), 'count' => (int) $row['count']], $day['types']);
-            }
-        }
-
-        return ['day_limits' => $limits, 'day_types' => $types];
     }
 
     /** @return Collection<int, Area> */

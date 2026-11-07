@@ -110,11 +110,11 @@
             const root = document.getElementById('monitor');
 
             // Source palette — keep in sync with partials/monitor-board + monitor-status.
-            const LEGEND_FIXED = ['PM', 'GREASING', 'OIL_AUDIT', 'OIL_AUDIT_ACTION'];       // Manual shown by name
-            const SRC_LABEL = { PM: 'PM', GREASING: 'Greasing', OIL_AUDIT: 'Oil Audit', OIL_AUDIT_ACTION: 'Oil Audit Action', MANUAL: 'Manual' };
-            const SRC_HEX = { PM: '#2563eb', GREASING: '#f59e0b', OIL_AUDIT: '#10b981', OIL_AUDIT_ACTION: '#0891b2', MANUAL: '#8b5cf6' };
-            const SRC_ACCENT = { PM: 'border-blue-600', GREASING: 'border-amber-500', OIL_AUDIT: 'border-emerald-500', OIL_AUDIT_ACTION: 'border-cyan-600', MANUAL: 'border-violet-500' };
-            const SRC_TEXT = { PM: 'text-blue-600', GREASING: 'text-amber-600', OIL_AUDIT: 'text-emerald-600', OIL_AUDIT_ACTION: 'text-cyan-700', MANUAL: 'text-violet-600' };
+            const LEGEND_FIXED = ['PM', 'GREASING', 'SMALL_PM', 'OIL_AUDIT', 'OIL_AUDIT_ACTION', 'PREDICTIVE'];       // Manual shown by name
+            const SRC_LABEL = { PM: 'PM', GREASING: 'Greasing', SMALL_PM: 'Small PM', OIL_AUDIT: 'Oil Audit', OIL_AUDIT_ACTION: 'Oil Audit Action', PREDICTIVE: 'Action Predictive', MANUAL: 'Manual' };
+            const SRC_HEX = { PM: '#2563eb', GREASING: '#f59e0b', SMALL_PM: '#65a30d', OIL_AUDIT: '#10b981', OIL_AUDIT_ACTION: '#0891b2', PREDICTIVE: '#e11d48', MANUAL: '#8b5cf6' };
+            const SRC_ACCENT = { PM: 'border-blue-600', GREASING: 'border-amber-500', SMALL_PM: 'border-lime-600', OIL_AUDIT: 'border-emerald-500', OIL_AUDIT_ACTION: 'border-cyan-600', PREDICTIVE: 'border-rose-600', MANUAL: 'border-violet-500' };
+            const SRC_TEXT = { PM: 'text-blue-600', GREASING: 'text-amber-600', SMALL_PM: 'text-lime-700', OIL_AUDIT: 'text-emerald-600', OIL_AUDIT_ACTION: 'text-cyan-700', PREDICTIVE: 'text-rose-600', MANUAL: 'text-violet-600' };
 
             // Manual activities don't share one "Manual" color — each DISTINCT
             // activity NAME gets its own deterministic color (same name always

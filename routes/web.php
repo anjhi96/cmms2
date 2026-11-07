@@ -29,6 +29,8 @@ use App\Http\Controllers\PredictiveOptionController;
 use App\Http\Controllers\ProblemReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrScannerController;
+use App\Http\Controllers\SmallPmController;
+use App\Http\Controllers\SmallPmRowController;
 use App\Http\Controllers\SparepartController;
 use App\Http\Controllers\SparepartInjectionController;
 use App\Http\Controllers\SparepartPlanningController;
@@ -181,9 +183,31 @@ Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR'])->prefix('weekly
     Route::put('/plans/{plan}/items', [WeeklyPlanController::class, 'saveItems'])->name('items.save')->whereNumber('plan');
     Route::put('/plans/{plan}/day-limits', [WeeklyPlanController::class, 'saveDayLimits'])->name('day-limits.save')->whereNumber('plan');
     Route::post('/plans/{plan}/autofill', [WeeklyPlanController::class, 'autofill'])->name('autofill')->whereNumber('plan');
+    Route::post('/plans/{plan}/day-defaults', [WeeklyPlanController::class, 'restoreDayDefaults'])->name('day-defaults.restore')->whereNumber('plan');
     Route::get('/plans/{plan}/pic-sync', [WeeklyPlanController::class, 'picSyncPreview'])->name('pic-sync.preview')->whereNumber('plan');
     Route::post('/plans/{plan}/pic-sync', [WeeklyPlanController::class, 'picSyncApply'])->name('pic-sync.apply')->whereNumber('plan');
     Route::post('/plans/{plan}/mark-sent', [WeeklyPlanController::class, 'markSent'])->name('mark-sent')->whereNumber('plan');
+});
+
+// Small PM: schedules per row of machines, one tab per kind of work. Same
+// split as Greasing: everyone (PIC included) lists / starts / executes,
+// ADMIN / KOORDINATOR plan. Area checks live in SmallPmController.
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR,PIC'])->prefix('small-pm')->name('small-pm.')->group(function () {
+    Route::get('/', [SmallPmController::class, 'index'])->name('index');
+    Route::post('/{schedule}/start', [SmallPmController::class, 'start'])->name('start')->whereNumber('schedule');
+    Route::get('/{schedule}/execute', [SmallPmController::class, 'execute'])->name('execute')->whereNumber('schedule');
+    Route::post('/{schedule}/execute', [SmallPmController::class, 'storeExecution'])->name('execute.store')->whereNumber('schedule');
+});
+
+Route::middleware(['auth', 'role:ADMIN,KOORDINATOR'])->prefix('small-pm')->name('small-pm.')->group(function () {
+    Route::get('/create', [SmallPmController::class, 'create'])->name('create');
+    Route::post('/', [SmallPmController::class, 'store'])->name('store');
+    Route::post('/import', [SmallPmController::class, 'import'])->name('import');
+    Route::post('/generate', [SmallPmController::class, 'generate'])->name('generate');
+    Route::get('/{schedule}/edit', [SmallPmController::class, 'edit'])->name('edit')->whereNumber('schedule');
+    Route::put('/{schedule}', [SmallPmController::class, 'update'])->name('update')->whereNumber('schedule');
+    Route::delete('/{schedule}', [SmallPmController::class, 'destroy'])->name('destroy')->whereNumber('schedule');
+    Route::post('/{schedule}/assign-pic', [SmallPmController::class, 'assignPic'])->name('assign-pic')->whereNumber('schedule');
 });
 
 // Machine QR Management (Master): QR Code Management + Last PM Override.
@@ -213,6 +237,7 @@ Route::middleware([
     Route::post('/machines/import', [MachineController::class, 'import'])->name('machines.import');
 
     Route::resource('groups', GroupController::class)->except(['show']);
+    Route::resource('small-pm-rows', SmallPmRowController::class);
 
     Route::resource('greasings', GreasingController::class)->except(['index']);
     Route::post('/greasings/import', [GreasingController::class, 'import'])->name('greasings.import');
@@ -339,6 +364,7 @@ Route::middleware([
 Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,PIC,SUPERVISOR'])->prefix('predictive')->name('predictive.')->group(function () {
     Route::get('/', [PredictiveController::class, 'index'])->name('index');
     Route::get('/machines', [PredictiveController::class, 'machines'])->name('machines');
+    Route::post('/start', [PredictiveController::class, 'start'])->name('start');
     Route::post('/work-orders', [PredictiveController::class, 'store'])->name('store');
     Route::post('/import', [PredictiveController::class, 'import'])->name('import');
     Route::get('/work-orders/{workOrder}', [PredictiveController::class, 'show'])->name('show')->whereNumber('workOrder');

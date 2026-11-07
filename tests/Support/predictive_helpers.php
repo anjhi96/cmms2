@@ -20,9 +20,20 @@ function pvMachine(string $number = 'NDE-001', string $area = 'WWD', ?string $ty
     ]);
 }
 
-function pvUser(string $role): User
+/**
+ * PICs are created as already started on Action Predictive (it gates Claim and
+ * Action), so ordinary workflow tests need no setup. Pass `started => false` to
+ * get a PIC who has not started it.
+ */
+function pvUser(string $role, bool $started = true): User
 {
-    return User::factory()->create(roleAttributes($role));
+    $user = User::factory()->create(roleAttributes($role));
+
+    if ($started && $user->isPic()) {
+        $user->update(['predictive_started_at' => now()]);
+    }
+
+    return $user;
 }
 
 function pvWo(array $overrides = []): PredictiveWorkOrder
@@ -128,4 +139,15 @@ function pvAddAction(PredictiveWorkOrder $wo, int $n, string $finding, string $p
     $action->problems()->create(['problem' => $problem])->findings()->create(['finding' => $finding]);
 
     return $action;
+}
+
+function pvEdit(array $overrides = []): array
+{
+    return array_merge([
+        'order_number' => 'WO-EDITED',
+        'machine_number' => 'M-EDIT',
+        'wo_date' => '2026-11-02',
+        'due_date' => '2026-11-20',
+        'problem_description' => 'Deskripsi baru',
+    ], $overrides);
 }

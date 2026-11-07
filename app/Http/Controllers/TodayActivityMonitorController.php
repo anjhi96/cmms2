@@ -101,7 +101,7 @@ class TodayActivityMonitorController extends Controller
         $resolver = app(ActiveActivityResolver::class);
 
         $pics = User::query()
-            ->select(['id', 'name', 'role', 'area_id', 'avatar_path', 'oil_audit_started_at', 'oil_audit_action_started_at'])
+            ->select(['id', 'name', 'role', 'area_id', 'avatar_path', 'oil_audit_started_at', 'oil_audit_action_started_at', 'predictive_started_at'])
             ->with('area:id,name')
             ->where('role', User::ROLE_PIC)
             ->when($areaFilter, fn ($q) => $q->whereHas('area', fn ($a) => $a->where('name', $areaFilter)))
@@ -121,7 +121,7 @@ class TodayActivityMonitorController extends Controller
         $notStarted = [];
         $inactive = [];
         // Distribution counts ONLY currently-active activities, by source.
-        $distribution = ['PM' => 0, 'GREASING' => 0, 'OIL_AUDIT' => 0, 'OIL_AUDIT_ACTION' => 0, 'MANUAL' => 0];
+        $distribution = ['PM' => 0, 'GREASING' => 0, 'SMALL_PM' => 0, 'OIL_AUDIT' => 0, 'OIL_AUDIT_ACTION' => 0, 'PREDICTIVE' => 0, 'MANUAL' => 0];
         $manualByName = [];
         // Only the area(s) in scope — when filtered to one area, any other
         // area's row simply isn't returned (rather than showing a

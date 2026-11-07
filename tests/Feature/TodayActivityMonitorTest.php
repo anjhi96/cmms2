@@ -232,6 +232,7 @@ test('the data endpoint stays a small number of queries for a full 10-PIC roster
     $count = count(DB::getQueryLog());
     DB::disableQueryLog();
 
-    // 1 roster query + at most a few small indexed lookups per PIC.
-    expect($count)->toBeLessThanOrEqual(45);
+    // 1 roster query + at most a few small indexed lookups per PIC,
+    // + 1 roster-wide Small PM lookup (ActiveActivityResolver::smallPmActivities).
+    expect($count)->toBeLessThanOrEqual(46);
 });

@@ -195,7 +195,7 @@ class TodayActivityController extends Controller
         abort_unless($actor->isAdmin() || $actor->isKoordinator(), 403);
 
         $validated = $request->validate([
-            'source' => ['required', Rule::in(['PM', 'GREASING', 'OIL_AUDIT', 'OIL_AUDIT_ACTION', 'MANUAL'])],
+            'source' => ['required', Rule::in(['PM', 'GREASING', 'SMALL_PM', 'OIL_AUDIT', 'OIL_AUDIT_ACTION', 'PREDICTIVE', 'MANUAL'])],
             'source_key' => ['required', 'string', 'max:255'],
             'pic_user_id' => ['required', 'integer'],
         ]);
@@ -317,8 +317,12 @@ class TodayActivityController extends Controller
             'GREASING' => $activity->recordId
                 ? ['label' => 'Open Execute', 'url' => route('greasings.execute', $activity->recordId)]
                 : null,
+            'SMALL_PM' => $activity->recordId
+                ? ['label' => 'Open Execute', 'url' => route('small-pm.execute', $activity->recordId)]
+                : null,
             'OIL_AUDIT' => ['label' => 'Open Oil Audit', 'url' => route('oil-audits.scan')],
             'OIL_AUDIT_ACTION' => ['label' => 'Open Oil Audit Action', 'url' => route('oil-audits.report')],
+            'PREDICTIVE' => ['label' => 'Open Action Predictive', 'url' => route('predictive.index')],
             default => null,
         };
     }
