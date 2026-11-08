@@ -13,7 +13,10 @@ return [
     // How many rows the "Generate" button puts into one week.
     'rows_per_week' => 4,
 
-    // Cycle filled in by "Generate"; executing a schedule plans the next one this many weeks after its action date.
-    'default_cycle' => '26W',
+    // Cycle pre-filled per tab (Generate, Add Schedule); executing a schedule plans the next one this many weeks after its action date.
+    'default_cycle' => [
+        'cleaning_motor' => '26W',
+        'filter_panel' => '26W',
+    ],
 
 ];

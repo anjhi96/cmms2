@@ -61,6 +61,43 @@
                         class="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600">
                 </div>
 
+                @if ($schedule->hasFindings())
+                    @php
+                        $found = $schedule->findings->keyBy('machine_id');
+                        $checkedDead = collect(old('dead_machine_ids', $found->keys()->all()))->map(fn ($id) => (int) $id)->all();
+                    @endphp
+                    <fieldset class="md:col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <legend class="px-1 text-sm font-medium text-slate-700">Blower filter mati</legend>
+                        <p class="text-xs text-slate-500">Centang mesin yang blower filternya mati. Kosongkan bila semua normal. Tiap mesin yang dicentang jadi temuan OPEN sampai tindakannya diisi.</p>
+                        @if ($machines->isEmpty())
+                            <p class="mt-2 text-sm text-slate-500">Row ini belum berisi mesin.</p>
+                        @else
+                            <div class="mt-3 grid gap-1 sm:grid-cols-2">
+                                @foreach ($machines as $m)
+                                    @php($closed = $found->get($m->id)?->status === 'COMPLETED')
+                                    <label class="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg bg-white px-3 py-2 text-sm {{ $closed ? 'cursor-not-allowed text-slate-500' : 'text-slate-800 hover:bg-slate-100' }}">
+                                        <input type="checkbox" name="dead_machine_ids[]" value="{{ $m->id }}"
+                                            class="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            @checked(in_array($m->id, $checkedDead, true)) @disabled($closed)>
+                                        <span class="font-medium">{{ $m->machine_number }}</span>
+                                        <span class="text-slate-500">{{ $m->machine_type }}</span>
+                                        @if ($closed) <span class="ml-auto text-xs">sudah ditangani</span> @endif
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                        @if ($found->isNotEmpty())
+                            <p class="mt-3 text-xs text-slate-600">
+                                {{ $found->where('status', 'OPEN')->count() }} temuan masih open.
+                                Tindak lanjut ada di tab
+                                <a href="{{ route('small-pm.index', ['tab' => \App\Http\Controllers\SmallPmController::FINDINGS_TAB, 'row_id' => $schedule->small_pm_row_id]) }}" class="font-semibold text-blue-700 underline-offset-2 hover:underline">Temuan Blower Mati</a>.
+                            </p>
+                        @endif
+                        @error('dead_machine_ids') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        @error('dead_machine_ids.*') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    </fieldset>
+                @endif
+
                 <div class="md:col-span-2">
                     <label for="x-remarks" class="mb-2 block text-sm font-medium text-slate-700">Remarks</label>
                     <textarea id="x-remarks" name="remarks" class="min-h-24 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-blue-500 focus:outline-none">{{ old('remarks', $schedule->remarks) }}</textarea>
@@ -74,5 +111,6 @@
             </div>
         </form>
     </div>
+
 </div>
 @endsection

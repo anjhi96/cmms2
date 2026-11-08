@@ -197,6 +197,7 @@ Route::middleware(['auth', 'role:ADMIN,KOORDINATOR,SUPERVISOR,PIC'])->prefix('sm
     Route::post('/{schedule}/start', [SmallPmController::class, 'start'])->name('start')->whereNumber('schedule');
     Route::get('/{schedule}/execute', [SmallPmController::class, 'execute'])->name('execute')->whereNumber('schedule');
     Route::post('/{schedule}/execute', [SmallPmController::class, 'storeExecution'])->name('execute.store')->whereNumber('schedule');
+    Route::patch('/{schedule}/findings/{finding}', [SmallPmController::class, 'updateFinding'])->name('findings.update')->whereNumber(['schedule', 'finding']);
 });
 
 Route::middleware(['auth', 'role:ADMIN,KOORDINATOR'])->prefix('small-pm')->name('small-pm.')->group(function () {

@@ -56,6 +56,17 @@ class SmallPmSchedule extends Model
         return $this->belongsTo(User::class, 'pic_user_id');
     }
 
+    /** Dead blower filters (Ganti Filter Panel only). */
+    public function findings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SmallPmFinding::class);
+    }
+
+    public function hasFindings(): bool
+    {
+        return $this->task_type === SmallPmRow::TASK_FILTER_PANEL;
+    }
+
     public function areaName(): ?string
     {
         return $this->row?->area?->name;

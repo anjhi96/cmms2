@@ -321,7 +321,166 @@ test('a supervisor can list but not execute or plan', function () {
     $this->actingAs($sup)->get('/small-pm/create')->assertForbidden();
 });
 
-test('the filter panel tab shows not available', function () {
-    $this->actingAs(spmUser(User::ROLE_KOORDINATOR))->get('/small-pm?tab=filter-panel')
-        ->assertOk()->assertSee('belum tersedia');
+// --- Ganti Filter Panel ----------------------------------------------------
+
+function spmFilterSchedule(SmallPmRow $row, array $attrs = []): SmallPmSchedule
+{
+    return spmSchedule($row, array_merge(['task_type' => SmallPmRow::TASK_FILTER_PANEL], $attrs));
+}
+
+test('the filter panel tab is its own schedule list using the same rows', function () {
+    $koord = spmUser(User::ROLE_KOORDINATOR);
+    $row = spmRow(1);
+    spmSchedule($row); // cleaning, OPEN
+
+    $this->actingAs($koord)->get('/small-pm?tab=filter-panel')
+        ->assertOk()
+        ->assertSee('Blower Mati')
+        ->assertViewHas('schedules', fn ($p) => $p->total() === 0)
+        ->assertViewHas('unscheduledCount', 1);
+
+    $this->actingAs($koord)->post('/small-pm/generate', ['tab' => 'filter-panel', 'start_week' => '2026-11-09', 'cycle' => '26W'])
+        ->assertSessionHas('success');
+
+    expect(SmallPmSchedule::where('task_type', SmallPmRow::TASK_FILTER_PANEL)->count())->toBe(1);
+    expect(SmallPmSchedule::where('task_type', SmallPmRow::TASK_CLEANING_MOTOR)->count())->toBe(1);
+
+    $this->actingAs($koord)->get('/small-pm?tab=filter-panel')->assertViewHas('schedules', fn ($p) => $p->total() === 1);
+});
+
+test('executing a filter panel schedule records the ticked machines as OPEN dead-blower findings', function () {
+    $pic = spmUser(User::ROLE_PIC);
+    $row = spmRow(1, ['F1', 'F2', 'F3']);
+    $s = spmFilterSchedule($row, ['pic_user_id' => $pic->id]);
+    [$f1, $f2] = [Machine::where('machine_number', 'F1')->first(), Machine::where('machine_number', 'F2')->first()];
+
+    $this->actingAs($pic)->get("/small-pm/{$s->id}/execute")->assertOk()->assertSee('Blower filter mati');
+
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", ['action_date' => '2026-11-11', 'dead_machine_ids' => [$f1->id, $f2->id]])
+        ->assertRedirect();
+
+    expect($s->findings()->pluck('status', 'machine_id')->all())->toBe([$f1->id => 'OPEN', $f2->id => 'OPEN']);
+    expect($s->fresh()->status)->toBe('FINISH ON TIME');
+
+    // Unticking an OPEN one removes it; the other stays.
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", ['action_date' => '2026-11-11', 'dead_machine_ids' => [$f1->id]]);
+    expect($s->findings()->pluck('machine_id')->all())->toBe([$f1->id]);
+
+    $this->actingAs($pic)->get('/small-pm?tab=filter-panel')->assertSee('1 mesin')->assertSee('1 open');
+});
+
+test('no ticked machine means no finding, and a machine from another row is rejected', function () {
+    $pic = spmUser(User::ROLE_PIC);
+    $s = spmFilterSchedule(spmRow(1), ['pic_user_id' => $pic->id]);
+    spmRow(2, ['OTHER']);
+
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", ['action_date' => '2026-11-11'])->assertRedirect();
+    expect($s->findings()->count())->toBe(0);
+
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", [
+        'action_date' => '2026-11-11', 'dead_machine_ids' => [Machine::where('machine_number', 'OTHER')->value('id')],
+    ])->assertSessionHasErrors('dead_machine_ids.0');
+    expect($s->findings()->count())->toBe(0);
+});
+
+test('cleaning schedules ignore dead-blower input', function () {
+    $pic = spmUser(User::ROLE_PIC);
+    $row = spmRow(1);
+    $s = spmSchedule($row, ['pic_user_id' => $pic->id]);
+
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", [
+        'action_date' => '2026-11-11', 'dead_machine_ids' => [$row->machines()->value('id')],
+    ])->assertRedirect();
+
+    expect($s->findings()->count())->toBe(0);
+});
+
+test('a finding is closed with an action, survives re-saving the execution, and only admin or koordinator reopen it', function () {
+    $pic = spmUser(User::ROLE_PIC);
+    $koord = spmUser(User::ROLE_KOORDINATOR);
+    $row = spmRow(1, ['F1']);
+    $s = spmFilterSchedule($row, ['pic_user_id' => $pic->id]);
+    $f1 = Machine::where('machine_number', 'F1')->value('id');
+
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", ['action_date' => '2026-11-11', 'dead_machine_ids' => [$f1]]);
+    $finding = $s->findings()->sole();
+
+    $this->actingAs($pic)->patch("/small-pm/{$s->id}/findings/{$finding->id}", [])->assertSessionHasErrors('action');
+    $this->actingAs($pic)->patch("/small-pm/{$s->id}/findings/{$finding->id}", ['action' => 'Blower diganti', 'action_date' => '2026-11-12'])
+        ->assertSessionHas('success');
+
+    $finding->refresh();
+    expect($finding->status)->toBe('COMPLETED');
+    expect($finding->action_date->toDateString())->toBe('2026-11-12');
+
+    // A completed finding is history: re-saving without it ticked keeps it.
+    $this->actingAs($pic)->post("/small-pm/{$s->id}/execute", ['action_date' => '2026-11-11']);
+    expect($finding->fresh())->not->toBeNull();
+
+    $this->actingAs($pic)->patch("/small-pm/{$s->id}/findings/{$finding->id}", ['status' => 'OPEN'])->assertForbidden();
+    $this->actingAs($koord)->patch("/small-pm/{$s->id}/findings/{$finding->id}", ['status' => 'OPEN'])->assertSessionHas('success');
+    expect($finding->fresh()->status)->toBe('OPEN');
+});
+
+test('a finding cannot be reached through another schedule', function () {
+    $koord = spmUser(User::ROLE_KOORDINATOR);
+    $a = spmFilterSchedule(spmRow(1, ['F1']));
+    $b = spmFilterSchedule(spmRow(2));
+    $finding = $a->findings()->create(['machine_id' => Machine::where('machine_number', 'F1')->value('id'), 'status' => 'OPEN']);
+
+    $this->actingAs($koord)->patch("/small-pm/{$b->id}/findings/{$finding->id}", ['action' => 'x'])->assertNotFound();
+});
+
+// --- Tab Temuan Blower Mati ---------------------------------------------------
+
+test('the findings tab gathers dead-blower findings from every filter panel schedule, OPEN first', function () {
+    $koord = spmUser(User::ROLE_KOORDINATOR);
+    $a = spmFilterSchedule(spmRow(1, ['F1', 'F2']), ['action_date' => '2026-11-10']);
+    $b = spmFilterSchedule(spmRow(2, ['G1']), ['action_date' => '2026-11-11']);
+    $done = $a->findings()->create(['machine_id' => Machine::where('machine_number', 'F1')->value('id'), 'status' => 'COMPLETED', 'action' => 'Blower diganti', 'action_date' => '2026-11-11']);
+    $open1 = $a->findings()->create(['machine_id' => Machine::where('machine_number', 'F2')->value('id'), 'status' => 'OPEN']);
+    $open2 = $b->findings()->create(['machine_id' => Machine::where('machine_number', 'G1')->value('id'), 'status' => 'OPEN']);
+
+    $this->actingAs($koord)->get('/small-pm?tab=temuan-blower')
+        ->assertOk()
+        ->assertSee('Temuan Blower Mati')
+        ->assertSee('2 open')
+        ->assertSee('Blower diganti')
+        ->assertViewHas('findings', function ($p) use ($done) {
+            $ids = collect($p->items())->pluck('id')->all();
+
+            return count($ids) === 3 && end($ids) === $done->id;
+        });
+
+    $this->actingAs($koord)->get('/small-pm?tab=temuan-blower&status[]=OPEN&row_id='.$b->small_pm_row_id)
+        ->assertViewHas('findings', fn ($p) => collect($p->items())->pluck('id')->all() === [$open2->id]);
+
+    // Import / Add Schedule / Generate belong to the schedule tabs only.
+    $this->actingAs($koord)->get('/small-pm?tab=temuan-blower')->assertDontSee('Add Schedule');
+});
+
+test('a PIC only sees findings of schedules they can see, and closes them from the findings tab', function () {
+    $pic = spmUser(User::ROLE_PIC);
+    $other = spmUser(User::ROLE_PIC);
+    $mine = spmFilterSchedule(spmRow(1, ['F1']), ['pic_user_id' => $pic->id]);
+    $theirs = spmFilterSchedule(spmRow(2, ['G1']), ['pic_user_id' => $other->id]);
+    $f = $mine->findings()->create(['machine_id' => Machine::where('machine_number', 'F1')->value('id'), 'status' => 'OPEN']);
+    $theirs->findings()->create(['machine_id' => Machine::where('machine_number', 'G1')->value('id'), 'status' => 'OPEN']);
+
+    $this->actingAs($pic)->get('/small-pm?tab=temuan-blower')
+        ->assertViewHas('findings', fn ($p) => collect($p->items())->pluck('id')->all() === [$f->id]);
+
+    $this->actingAs($pic)->from('/small-pm?tab=temuan-blower')
+        ->patch("/small-pm/{$mine->id}/findings/{$f->id}", ['action' => 'Blower diganti'])
+        ->assertRedirect('/small-pm?tab=temuan-blower');
+
+    expect($f->fresh()->status)->toBe('COMPLETED');
+});
+
+test('schedule-only actions refuse the findings tab', function () {
+    $koord = spmUser(User::ROLE_KOORDINATOR);
+    spmRow(1);
+
+    $this->actingAs($koord)->get('/small-pm/create?tab=temuan-blower')->assertNotFound();
+    $this->actingAs($koord)->post('/small-pm/generate', ['tab' => 'temuan-blower', 'start_week' => '2026-11-09', 'cycle' => '26W'])->assertNotFound();
 });

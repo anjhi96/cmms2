@@ -6,6 +6,7 @@ use App\Exceptions\SmallPmWorkflowException;
 use App\Http\Controllers\Concerns\HandlesActivityConflict;
 use App\Imports\SmallPmScheduleImport;
 use App\Models\Area;
+use App\Models\SmallPmFinding;
 use App\Models\SmallPmRow;
 use App\Models\SmallPmSchedule;
 use App\Models\User;
@@ -32,8 +33,11 @@ class SmallPmController extends Controller
     /** URL tab => task_type, available */
     public const TABS = [
         'cleaning-motor' => ['task' => SmallPmRow::TASK_CLEANING_MOTOR, 'available' => true],
-        'filter-panel' => ['task' => SmallPmRow::TASK_FILTER_PANEL, 'available' => false],
+        'filter-panel' => ['task' => SmallPmRow::TASK_FILTER_PANEL, 'available' => true],
     ];
+
+    /** Every dead-blower finding of every Ganti Filter Panel schedule, in one list. */
+    public const FINDINGS_TAB = 'temuan-blower';
 
     public function __construct(private readonly SmallPmScheduler $scheduler) {}
 
@@ -41,8 +45,17 @@ class SmallPmController extends Controller
     {
         $user = $request->user();
         $tab = self::resolveTab($request->query('tab'));
-        $tabs = collect(self::TABS)->map(fn (array $t) => ['label' => SmallPmRow::TASK_TYPES[$t['task']], 'available' => $t['available']])->all();
+        $tabs = collect(self::TABS)->map(fn (array $t) => ['label' => SmallPmRow::TASK_TYPES[$t['task']], 'available' => $t['available'], 'count' => null])->all();
+        $tabs[self::FINDINGS_TAB] = [
+            'label' => 'Temuan Blower Mati',
+            'available' => true,
+            'count' => SmallPmFinding::where('status', 'OPEN')->whereHas('schedule', fn ($q) => $q->visibleToUser($user))->count(),
+        ];
         $canManage = $user->isAdmin() || $user->isKoordinator();
+
+        if ($tab === self::FINDINGS_TAB) {
+            return $this->findingsTab($request, compact('tab', 'tabs', 'canManage'));
+        }
 
         if (! self::TABS[$tab]['available']) {
             return view('small-pm.index', compact('tab', 'tabs', 'canManage') + ['available' => false]);
@@ -52,6 +65,10 @@ class SmallPmController extends Controller
 
         $query = SmallPmSchedule::query()
             ->with(['row.area', 'pic:id,name'])
+            ->when($taskType === SmallPmRow::TASK_FILTER_PANEL, fn ($q) => $q->withCount([
+                'findings',
+                'findings as open_findings_count' => fn ($f) => $f->where('status', 'OPEN'),
+            ]))
             ->where('task_type', $taskType)
             ->visibleToUser($user);
 
@@ -83,7 +100,8 @@ class SmallPmController extends Controller
             'picsByArea' => $canManage ? $this->picsByArea() : collect(),
             'unscheduledCount' => $canManage ? $this->scheduler->unscheduledRows($taskType, $manageAreaIds)->count() : 0,
             'rowsPerWeek' => $this->scheduler->rowsPerWeek(),
-            'defaultCycle' => config('small_pm.default_cycle', '26W'),
+            'defaultCycle' => self::defaultCycle($taskType),
+            'hasFindings' => $taskType === SmallPmRow::TASK_FILTER_PANEL,
             'thisMonday' => SmallPmScheduler::monday(now()),
         ]);
     }
@@ -97,7 +115,7 @@ class SmallPmController extends Controller
             'tabLabel' => SmallPmRow::TASK_TYPES[self::TABS[$tab]['task']],
             'rows' => $this->manageableRows($request->user()),
             'picsByArea' => $this->picsByArea(),
-            'defaultCycle' => config('small_pm.default_cycle', '26W'),
+            'defaultCycle' => self::defaultCycle(self::TABS[$tab]['task']),
         ]);
     }
 
@@ -289,7 +307,7 @@ class SmallPmController extends Controller
     {
         $this->authorizeExecute($request->user(), $schedule);
 
-        $schedule->load(['row.area', 'pic:id,name']);
+        $schedule->load(['row.area', 'pic:id,name', 'findings' => fn ($q) => $q->with('machine:id,machine_number')->orderBy('id')]);
 
         return view('small-pm.execute', [
             'schedule' => $schedule,
@@ -307,9 +325,17 @@ class SmallPmController extends Controller
         $validated = $request->validate([
             'action_date' => 'required|date',
             'remarks' => 'nullable|string|max:2000',
+            'dead_machine_ids' => ['nullable', 'array'],
+            'dead_machine_ids.*' => ['integer', 'distinct', Rule::exists('machines', 'id')->where('small_pm_row_id', $schedule->small_pm_row_id)],
+        ], [
+            'dead_machine_ids.*.exists' => 'Mesin blower filter mati harus dari row ini.',
         ]);
 
         $next = DB::transaction(function () use ($schedule, $validated, $user) {
+            if ($schedule->hasFindings()) {
+                $this->syncDeadBlowers($schedule, array_map('intval', $validated['dead_machine_ids'] ?? []));
+            }
+
             $schedule->update([
                 'action_date' => $validated['action_date'],
                 'remarks' => $validated['remarks'] ?? null,
@@ -325,15 +351,116 @@ class SmallPmController extends Controller
             ->with('success', 'Execution disimpan.'.($next ? ' Jadwal berikutnya: '.$next->plan_date->format('d M Y').'.' : ''));
     }
 
-    public static function resolveTab(?string $tab): string
+    /** @param  array<string, mixed>  $shared */
+    private function findingsTab(Request $request, array $shared)
     {
-        return array_key_exists((string) $tab, self::TABS) ? (string) $tab : array_key_first(self::TABS);
+        $user = $request->user();
+
+        $query = SmallPmFinding::query()
+            ->with(['machine:id,machine_number,machine_type', 'schedule.row:id,name'])
+            ->whereHas('schedule', fn ($q) => $q->where('task_type', SmallPmRow::TASK_FILTER_PANEL)->visibleToUser($user));
+
+        if ($request->filled('search')) {
+            $query->whereHas('machine', fn ($q) => $q->where('machine_number', 'like', '%'.$request->search.'%'));
+        }
+
+        if ($request->filled('row_id')) {
+            $query->whereHas('schedule', fn ($q) => $q->where('small_pm_row_id', $request->row_id));
+        }
+
+        if ($request->filled('status')) {
+            $query->whereIn('status', (array) $request->status);
+        }
+
+        // OPEN first, newest first inside each status.
+        $findings = $query->orderByRaw("CASE WHEN status = 'OPEN' THEN 0 ELSE 1 END")
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('small-pm.index', $shared + [
+            'available' => true,
+            'findings' => $findings,
+            'rows' => SmallPmRow::query()
+                ->when(! $user->seesAllAreas(), fn ($q) => $q->where('area_id', $user->area_id))
+                ->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
+        ]);
     }
 
+    /**
+     * Close a dead-blower finding by recording the action (COMPLETED), or,
+     * for admin / koordinator, reopen it (status=OPEN). Same idea as
+     * GreasingController::updateFinding().
+     */
+    public function updateFinding(Request $request, SmallPmSchedule $schedule, SmallPmFinding $finding): RedirectResponse
+    {
+        $user = $request->user();
+        $this->authorizeExecute($user, $schedule);
+        abort_unless($finding->small_pm_schedule_id === $schedule->id, 404);
+
+        if ($request->input('status') === 'OPEN') {
+            abort_unless($this->canManage($user, $schedule), 403);
+            $finding->update(['status' => 'OPEN', 'action_date' => null]);
+
+            return back()->with('success', 'Temuan '.$finding->machine?->machine_number.' dibuka lagi.');
+        }
+
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'max:2000'],
+            'action_date' => ['nullable', 'date'],
+        ], [], ['action' => 'tindakan']);
+
+        $finding->update([
+            'status' => 'COMPLETED',
+            'action' => $validated['action'],
+            'action_date' => $validated['action_date'] ?? now()->toDateString(),
+        ]);
+
+        return back()->with('success', 'Temuan '.$finding->machine?->machine_number.' ditutup.');
+    }
+
+    /**
+     * Ticked machines become OPEN findings; an OPEN finding whose machine was
+     * unticked is removed. COMPLETED findings stay, they are history.
+     *
+     * @param  list<int>  $machineIds
+     */
+    private function syncDeadBlowers(SmallPmSchedule $schedule, array $machineIds): void
+    {
+        $existing = $schedule->findings()->get()->keyBy('machine_id');
+
+        foreach ($machineIds as $id) {
+            if (! $existing->has($id)) {
+                $schedule->findings()->create(['machine_id' => $id, 'status' => 'OPEN']);
+            }
+        }
+
+        $schedule->findings()
+            ->where('status', 'OPEN')
+            ->whereNotIn('machine_id', $machineIds ?: [0])
+            ->delete();
+    }
+
+    public static function defaultCycle(string $taskType): string
+    {
+        $cycle = config('small_pm.default_cycle', '26W');
+
+        return is_array($cycle) ? ($cycle[$taskType] ?? '26W') : (string) $cycle;
+    }
+
+    public static function resolveTab(?string $tab): string
+    {
+        return array_key_exists((string) $tab, self::TABS) || $tab === self::FINDINGS_TAB
+            ? (string) $tab
+            : array_key_first(self::TABS);
+    }
+
+    /** A schedule tab (not the findings tab) that is available. */
     private function availableTab(?string $tab): string
     {
         $tab = self::resolveTab($tab);
-        abort_unless(self::TABS[$tab]['available'], 404);
+        abort_unless(isset(self::TABS[$tab]) && self::TABS[$tab]['available'], 404);
 
         return $tab;
     }

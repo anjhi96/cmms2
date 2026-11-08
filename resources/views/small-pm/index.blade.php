@@ -9,7 +9,8 @@
             <p class="text-sm text-slate-500">Jadwal PM per row mesin. Row diatur di Master Data, Row Small PM.</p>
         </div>
 
-        @if ($canManage && $available)
+        @php($isFindingsTab = $tab === \App\Http\Controllers\SmallPmController::FINDINGS_TAB)
+        @if ($canManage && $available && ! $isFindingsTab)
         <div class="flex flex-col gap-3 sm:flex-row">
             <form action="{{ route('small-pm.import') }}" method="POST" enctype="multipart/form-data"
                 class="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:flex-row sm:items-center">
@@ -40,6 +41,9 @@
                 @unless ($t['available'])
                     <span class="text-xs font-medium text-slate-500">(belum tersedia)</span>
                 @endunless
+                @if ($t['count'])
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{{ $t['count'] }} open</span>
+                @endif
             </a>
         @endforeach
     </nav>
@@ -67,7 +71,9 @@
         </div>
     @endif
 
-    @if (! $available)
+    @if ($isFindingsTab)
+        @include('small-pm._findings-tab')
+    @elseif (! $available)
         <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-12 text-center">
             <p class="text-sm font-semibold text-slate-700">{{ $tabs[$tab]['label'] }} belum tersedia.</p>
             <p class="mt-1 text-sm text-slate-500">Jadwalnya akan diatur di tab ini setelah Cleaning Kisi-Kisi Motor berjalan.</p>
@@ -128,7 +134,7 @@
             <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                     <tr>
-                        @foreach (['Order Number', 'Row', 'Mesin', 'Cycle', 'Plan Date', 'Due Date', 'PIC', 'Status', 'Action'] as $h)
+                        @foreach (array_merge(['Order Number', 'Row', 'Mesin', 'Cycle', 'Plan Date', 'Due Date', 'PIC', 'Status'], $hasFindings ? ['Blower Mati'] : [], ['Action']) as $h)
                             <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $h }}</th>
                         @endforeach
                     </tr>
@@ -150,13 +156,16 @@
                             <td class="px-4 py-3 text-sm text-slate-700">{{ $s->due_date->format('d M Y') }}</td>
                             <td class="px-4 py-3 text-sm text-slate-700">@include('small-pm._pic', ['s' => $s, 'suffix' => 'd'])</td>
                             <td class="px-4 py-3">@include('small-pm._status', ['status' => $s->status])</td>
+                            @if ($hasFindings)
+                                <td class="px-4 py-3 text-sm">@include('small-pm._findings-badge', ['s' => $s])</td>
+                            @endif
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap items-center gap-2">@include('small-pm._actions', ['s' => $s, 'mobile' => false])</div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-4 py-8 text-center text-sm text-slate-500">Belum ada jadwal Small PM</td>
+                            <td colspan="{{ $hasFindings ? 10 : 9 }}" class="px-4 py-8 text-center text-sm text-slate-500">Belum ada jadwal Small PM</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -188,6 +197,12 @@
                             <div class="text-slate-500">PIC</div>
                             <div class="font-medium text-slate-700">@include('small-pm._pic', ['s' => $s, 'suffix' => 'm'])</div>
                         </div>
+                        @if ($hasFindings)
+                            <div class="col-span-2">
+                                <div class="text-slate-500">Blower filter mati</div>
+                                <div class="mt-1">@include('small-pm._findings-badge', ['s' => $s])</div>
+                            </div>
+                        @endif
                         @if ($s->row)
                             <div class="col-span-2">
                                 <a href="{{ route('small-pm-rows.show', $s->row) }}" class="inline-flex min-h-11 items-center text-blue-700 underline-offset-2 hover:underline">Lihat mesin di row ini</a>
